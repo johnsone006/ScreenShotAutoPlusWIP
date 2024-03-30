@@ -161,27 +161,28 @@ namespace ScreenShotAutoPlus
         {//Method to figure out how long it would take for the largest file to load, have the button pressed, ald load the view;
             if (NumbersValidated() == true)
             {
-                string fileInfo;
-
-                Stopwatch sw = new Stopwatch();
+                 
                 try
                 {
-                    fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
+                    string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
                     Process theProcess = new Process();
                     theProcess.StartInfo.FileName = fileInfo;
                     theProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
                     theProcess.Start();
-                    sw.Start();
+                    DateTime startCalTime = DateTime.Now;
+                    Thread.Sleep(waitB4);
                     Task<bool> buttonCalc = AutomaticButtonPress();
                     buttonCalc.Wait();
                     theProcess.WaitForInputIdle();
-                    sw.Stop();
+                    Thread.Sleep(500);
+                    DateTime endCalTime = DateTime.Now;
                     theProcess.Kill();
-                    timeToWait = ((int)(sw.ElapsedMilliseconds) / 1000);
+                    timeToWait = (int)(endCalTime - startCalTime).TotalSeconds;
+                    stateTxt.Text = timeToWait.ToString();
                 }
                 catch (Exception f)
                 {
-                    MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
+                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
                 }
                 MessageBox.Show("Time calculated!");
             }
@@ -205,11 +206,9 @@ namespace ScreenShotAutoPlus
                             myProcess.Start();
                             Task<bool> button = AutomaticButtonPress();
                             buttonPressed = await button;
-                            Task<int> wait = WaitTask();
-                            await wait;
+                            Thread.Sleep(2000);
                             Task<int> screenshot = ScreenshotMethod();
                             completedScreenshots = await screenshot;
-
                             DateTime screenshotDone = DateTime.Now;
                             Thread.Sleep(waitAfter);
                             screenshotTime = (screenshotDone - startTime);
@@ -219,6 +218,7 @@ namespace ScreenShotAutoPlus
                             timeRemaining = await time;
                             Task<bool> ui = UpdateUI();
                             bool updateDone = await ui;
+                            Thread.Sleep(500);
                             myProcess.Kill();
                         }
                     }
