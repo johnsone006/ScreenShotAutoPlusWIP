@@ -39,6 +39,7 @@ namespace ScreenShotAutoPlus
         DateTime startTime;
         TimeSpan screenshotTime;
         bool buttonPressed = false;
+        bool buttonPressedForCalc = false;
 
         public Form1()
         {
@@ -157,36 +158,7 @@ namespace ScreenShotAutoPlus
             return;
 
         }
-        private  void CalculateTime_BTN_Click(object sender, EventArgs e)
-        {//Method to figure out how long it would take for the largest file to load, have the button pressed, ald load the view;
-            if (NumbersValidated() == true)
-            {
-                 
-                try
-                {
-                    string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
-                    Process theProcess = new Process();
-                    theProcess.StartInfo.FileName = fileInfo;
-                    theProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
-                    theProcess.Start();
-                    DateTime startCalTime = DateTime.Now;
-                    Thread.Sleep(waitB4);
-                    Task<bool> buttonCalc = AutomaticButtonPress();
-                    buttonCalc.Wait();
-                    theProcess.WaitForInputIdle();
-                    Thread.Sleep(500);
-                    DateTime endCalTime = DateTime.Now;
-                    theProcess.Kill();
-                    timeToWait = (int)(endCalTime - startCalTime).TotalSeconds;
-                    stateTxt.Text = timeToWait.ToString();
-                }
-                catch (Exception f)
-                {
-                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
-                }
-                MessageBox.Show("Time calculated!");
-            }
-        }
+        
         private async void Start_BTN_Click(object sender, EventArgs e)
         {
             if (NumbersValidated() == true)
@@ -194,7 +166,7 @@ namespace ScreenShotAutoPlus
                 DialogResult result = MessageBox.Show("If you press yes, this program will automatically click once on nifskope and then click the load view button in nifskope for every screenshot. Is this acceptable?", "Important question", MessageBoxButtons.YesNoCancel);
                 if (result == DialogResult.Yes)
                 {
-
+                    //Calculate Timespan 
                     using (Process myProcess = new Process())
                     {
                         foreach (var file in filePath_LB.Items)
@@ -204,9 +176,9 @@ namespace ScreenShotAutoPlus
                             myProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
                             myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
                             myProcess.Start();
+                            Thread.Sleep(waitB4);
                             Task<bool> button = AutomaticButtonPress();
                             buttonPressed = await button;
-                            Thread.Sleep(2000);
                             Task<int> screenshot = ScreenshotMethod();
                             completedScreenshots = await screenshot;
                             DateTime screenshotDone = DateTime.Now;
@@ -230,14 +202,24 @@ namespace ScreenShotAutoPlus
                     {
                         foreach (var file in filePath_LB.Items)
                         {
+                            DateTime startTime2 = DateTime.Now;
                             myProcess.StartInfo.FileName = (string)filePath_LB.Items[completedScreenshots];
                             myProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
                             myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
                             myProcess.Start();
-                            Thread.Sleep(waitB4);
                             Task<int> screenshot = ScreenshotMethod();
                             completedScreenshots = await screenshot;
+                            DateTime screenshotDone = DateTime.Now;
                             Thread.Sleep(waitAfter);
+                            screenshotTime = (screenshotDone - startTime2);
+                            Task<int> remaining = CalculateRemainingScreenshots();
+                            screenshotsRemaining = await remaining;
+                            Task<int> time = EstimateTimeRemaining();
+                            timeRemaining = await time;
+                            Task<bool> ui = UpdateUI();
+                            bool updateDone = await ui;
+                            Thread.Sleep(500);
+                            myProcess.Kill();
 
                         }
                     }
@@ -248,11 +230,7 @@ namespace ScreenShotAutoPlus
                 }
             }
         }
-        private Task<int> WaitTask()
-        {
-            Thread.Sleep(timeToWait);
-            return Task.FromResult(timeToWait);
-        }
+       
         private Task<bool> AutomaticButtonPress()
         {
 
@@ -273,9 +251,10 @@ namespace ScreenShotAutoPlus
         }
         private Task<int> ScreenshotMethod()
         {
+
             try
             {
-
+                
                 Point coords = new Point(xCoord, yCoord);
                 Point dest = new Point(0, 0);
                 Size size = new Size(ssWidth, ssHeight);
@@ -339,7 +318,55 @@ namespace ScreenShotAutoPlus
             }
         }
 
-
-
+        private  void CalculateTimeBTN_Click(object sender, EventArgs e)
+        {
+            //MAKE ABSOLUTELY SURE TO MAKE THE VALUE OF WAITB4 to wT!!
+            if(NumbersValidated() == true)
+            {
+                try
+                {
+                    string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
+                    using(Process theProcess = new Process())
+                    {
+                        theProcess.StartInfo.FileName = fileInfo;
+                        theProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                        theProcess.Start();
+                        DateTime startCalcTime = DateTime.Now;
+                        Thread.Sleep(waitAfter);
+                        Task<bool> buttonCalc = AutomaticButtonPressForCalculation();
+                        buttonCalc.Wait();
+                        theProcess.WaitForInputIdle();
+                        Thread.Sleep(500);
+                        DateTime endCalcTime = DateTime.Now;
+                        int wT = (int)(endCalcTime - startCalcTime).TotalSeconds;
+                        stateTxt.Text = wT.ToString();
+                        theProcess.Kill();
+                    }
+                }
+                catch(Exception f)
+                {
+                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                }
+                MessageBox.Show("Time calculated!");
+            }
+        }
+        private Task<bool> AutomaticButtonPressForCalculation()
+        {
+            bool calcBtnPressed = false;
+            try
+            {
+                MouseEventArgs args2 = new MouseEventArgs(MouseButtons.Left, 1, 810, 533, 0);
+                OnMouseDown(args2);
+                OnMouseUp(args2);
+                SendKeys.SendWait("{F8}");
+                calcBtnPressed = true;
+            }
+            catch (Exception f)
+            {
+                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                calcBtnPressed=false;
+            }
+            return Task.FromResult(calcBtnPressed);
+        }
     }
 }

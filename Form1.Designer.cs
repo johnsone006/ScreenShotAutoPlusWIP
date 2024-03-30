@@ -56,9 +56,8 @@
             this.stateTxt = new System.Windows.Forms.TextBox();
             this.hiddenTB = new System.Windows.Forms.TextBox();
             this.panel2 = new System.Windows.Forms.Panel();
-            this.button2 = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
-            this.CalculateTime_BTN = new System.Windows.Forms.Button();
+            this.CalculateTimeBTN = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             this.panel2.SuspendLayout();
             this.SuspendLayout();
@@ -276,7 +275,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.CalculateTime_BTN);
+            this.panel1.Controls.Add(this.CalculateTimeBTN);
             this.panel1.Controls.Add(this.stateTxt);
             this.panel1.Controls.Add(this.filePath_TB);
             this.panel1.Controls.Add(this.timeLeft_LBL);
@@ -327,25 +326,11 @@
             // panel2
             // 
             this.panel2.BackColor = System.Drawing.SystemColors.Control;
-            this.panel2.Controls.Add(this.button2);
             this.panel2.Controls.Add(this.button1);
             this.panel2.Location = new System.Drawing.Point(406, 0);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(1573, 93);
             this.panel2.TabIndex = 22;
-            // 
-            // button2
-            // 
-            this.button2.BackColor = System.Drawing.Color.Silver;
-            this.button2.FlatAppearance.BorderColor = System.Drawing.Color.Silver;
-            this.button2.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Silver;
-            this.button2.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
-            this.button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.button2.Location = new System.Drawing.Point(1467, 0);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(45, 21);
-            this.button2.TabIndex = 24;
-            this.button2.UseVisualStyleBackColor = false;
             // 
             // button1
             // 
@@ -356,15 +341,15 @@
             this.button1.TabIndex = 23;
             this.button1.UseVisualStyleBackColor = false;
             // 
-            // CalculateTime_BTN
+            // CalculateTimeBTN
             // 
-            this.CalculateTime_BTN.Location = new System.Drawing.Point(14, 915);
-            this.CalculateTime_BTN.Name = "CalculateTime_BTN";
-            this.CalculateTime_BTN.Size = new System.Drawing.Size(181, 23);
-            this.CalculateTime_BTN.TabIndex = 22;
-            this.CalculateTime_BTN.Text = "CalculateTimes";
-            this.CalculateTime_BTN.UseVisualStyleBackColor = true;
-            this.CalculateTime_BTN.Click += new System.EventHandler(this.CalculateTime_BTN_Click);
+            this.CalculateTimeBTN.Location = new System.Drawing.Point(12, 915);
+            this.CalculateTimeBTN.Name = "CalculateTimeBTN";
+            this.CalculateTimeBTN.Size = new System.Drawing.Size(208, 23);
+            this.CalculateTimeBTN.TabIndex = 22;
+            this.CalculateTimeBTN.Text = "CalculateTime";
+            this.CalculateTimeBTN.UseVisualStyleBackColor = true;
+            this.CalculateTimeBTN.Click += new System.EventHandler(this.CalculateTimeBTN_Click);
             // 
             // Form1
             // 
@@ -420,9 +405,8 @@
         private System.Windows.Forms.Panel panel2;
         private System.Windows.Forms.TextBox hiddenTB;
         private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button button2;
         private System.Windows.Forms.TextBox stateTxt;
-        private System.Windows.Forms.Button CalculateTime_BTN;
+        private System.Windows.Forms.Button CalculateTimeBTN;
     }
 }
 
