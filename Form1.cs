@@ -22,12 +22,7 @@ namespace ScreenShotAutoPlus
         private Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
         //self explanatory
         int completedScreenshots;
-        private int ssHeight;
-        private int ssWidth;
-        private int xCoord;
-        private int yCoord;
-        private int waitB4;
-        private int waitAfter;
+       
         private string filePath;
         private string savePath;
 
@@ -40,7 +35,7 @@ namespace ScreenShotAutoPlus
         TimeSpan screenshotTime;
         bool buttonPressed = false;
         bool buttonPressedForCalc = false;
-
+        long spaceAvailable;
         public Form1()
         {
             InitializeComponent();
@@ -61,12 +56,8 @@ namespace ScreenShotAutoPlus
             yCoord_TB.Text = "93";
             waitB4_TB.Text = "2000";
             waitAfter_TB.Text = "2000";
-
-
-
-
-        }
-        bool NumbersValidated()
+    }
+        bool NumbersValidated(int ssHeight, int ssWidth, int xCoord, int yCoord, int waitB4, int waitAfter)
         {
             try
             {
@@ -123,7 +114,14 @@ namespace ScreenShotAutoPlus
         }
         private void Import_BTN_Click(object sender, EventArgs e)
         {
-            if (NumbersValidated() == true)
+            int ssHeight = 0;
+            int ssWidth = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            int waitB4 = 0;
+            int waitAfter = 0;
+
+            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter) == true)
             {
                 try
                 {
@@ -161,38 +159,54 @@ namespace ScreenShotAutoPlus
         
         private async void Start_BTN_Click(object sender, EventArgs e)
         {
-            if (NumbersValidated() == true)
+            int ssHeight = 0;
+            int ssWidth = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            int waitB4 = 0;
+            int waitAfter = 0;
+            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter) == true)
             {
                 DialogResult result = MessageBox.Show("If you press yes, this program will automatically click once on nifskope and then click the load view button in nifskope for every screenshot. Is this acceptable?", "Important question", MessageBoxButtons.YesNoCancel);
                 if (result == DialogResult.Yes)
                 {
-                    //Calculate Timespan 
-                    using (Process myProcess = new Process())
+                    Task<long> space = GetSpaceAvailability();
+                    spaceAvailable = await space;
+                    if(spaceAvailable != 0)
                     {
-                        foreach (var file in filePath_LB.Items)
+                        using (Process myProcess = new Process())
                         {
-                            DateTime startTime = DateTime.Now;
-                            myProcess.StartInfo.FileName = (string)filePath_LB.Items[completedScreenshots];
-                            myProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
-                            myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
-                            myProcess.Start();
-                            Thread.Sleep(waitB4);
-                            Task<bool> button = AutomaticButtonPress();
-                            buttonPressed = await button;
-                            Task<int> screenshot = ScreenshotMethod();
-                            completedScreenshots = await screenshot;
-                            DateTime screenshotDone = DateTime.Now;
-                            Thread.Sleep(waitAfter);
-                            screenshotTime = (screenshotDone - startTime);
-                            Task<int> remaining = CalculateRemainingScreenshots();
-                            screenshotsRemaining = await remaining;
-                            Task<int> time = EstimateTimeRemaining();
-                            timeRemaining = await time;
-                            Task<bool> ui = UpdateUI();
-                            bool updateDone = await ui;
-                            Thread.Sleep(500);
-                            myProcess.Kill();
+                            foreach (var file in filePath_LB.Items)
+                            {
+
+                                DateTime startTime = DateTime.Now;
+                                myProcess.StartInfo.FileName = (string)filePath_LB.Items[completedScreenshots];
+                                myProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                                myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
+                                myProcess.Start();
+                                Thread.Sleep(waitB4);
+                                Task<bool> button = AutomaticButtonPress();
+                                buttonPressed = await button;
+                                Task<int> screenshot = ScreenshotMethod();
+                                completedScreenshots = await screenshot;
+                                DateTime screenshotDone = DateTime.Now;
+                                Thread.Sleep(waitAfter);
+                                screenshotTime = (screenshotDone - startTime);
+                                Task<int> remaining = CalculateRemainingScreenshots();
+                                screenshotsRemaining = await remaining;
+                                Task<int> time = EstimateTimeRemaining();
+                                timeRemaining = await time;
+                                Task<bool> ui = UpdateUI();
+                                bool updateDone = await ui;
+                                Thread.Sleep(500);
+                                myProcess.Kill();
+                            }
                         }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ooops! You have run out of room for screenshots!", "Error", MessageBoxButtons.OK);
+                        return;
                     }
                 }
                 else if (result == DialogResult.No)
@@ -230,10 +244,15 @@ namespace ScreenShotAutoPlus
                 }
             }
         }
-       
+       Task <long> GetSpaceAvailability()
+        {
+            string driveRoot = Path.GetPathRoot(savePath);
+            DriveInfo driveInfo = new DriveInfo(driveRoot);
+            long spaceLeft = driveInfo.AvailableFreeSpace;
+            return Task.FromResult(spaceLeft);
+        }
         private Task<bool> AutomaticButtonPress()
         {
-
             try
             {
                 MouseEventArgs args = new MouseEventArgs(MouseButtons.Left, 1, 810, 533, 0);
@@ -251,7 +270,13 @@ namespace ScreenShotAutoPlus
         }
         private Task<int> ScreenshotMethod()
         {
-
+            int ssHeight = 0;
+            int ssWidth = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            int waitB4 = 0;
+            int waitAfter = 0;
+            NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter);
             try
             {
                 
@@ -320,8 +345,14 @@ namespace ScreenShotAutoPlus
 
         private  void CalculateTimeBTN_Click(object sender, EventArgs e)
         {
+            int ssHeight = 0;
+            int ssWidth = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            int waitB4 = 0;
+            int waitAfter = 0;
             //MAKE ABSOLUTELY SURE TO MAKE THE VALUE OF WAITB4 to wT!!
-            if(NumbersValidated() == true)
+            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter) == true)
             {
                 try
                 {
