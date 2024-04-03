@@ -11,11 +11,16 @@ using System.Drawing.Text;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.InteropServices;
 using System.Linq;
+using System.Windows.Forms.VisualStyles;
+using System.Dynamic;
+using System.Security.AccessControl;
 
 namespace ScreenShotAutoPlus
 {
     public partial class Form1 : Form
     {
+        private Size originalPanel1Size;
+       
         //This is a bool that I have been attempting to use to pause the screenshot process.
         //In other words, make the program cease opening, screenshotting, and closing nifskope.
         private bool isPaused;
@@ -25,11 +30,14 @@ namespace ScreenShotAutoPlus
         private string savePath;
         int totalScreenshots;
         int timeRemaining;
-  
+        //Make folllowing 3 global for now.
+        int ssHeight;
+        int ssWidth;
+        Size theSize;
         TimeSpan screenshotTime;
         bool buttonPressed;
-     
-        
+
+
         private TaskCompletionSource<bool> pauseCompletionSource;
         public Form1()
         {
@@ -44,58 +52,57 @@ namespace ScreenShotAutoPlus
             this.TopMost = true;
             pauseCompletionSource = new TaskCompletionSource<bool>();
             pauseCompletionSource.SetResult(false);
-            toolTip1.SetToolTip(filePath_TB, "Textbox to type the file path of the folder containing the files you want to have screenshoted.");
-            toolTip1.SetToolTip(saveFilePath_TB, "Textbox to type the file path of the folder you want all the screenshots to be saved to.");
-            toolTip1.SetToolTip(screenshotWidth_TB, "Textbox to type the width of the screenshots.");
-            toolTip1.SetToolTip(screenshotHeight_TB, "Textbox to type the height of the screenshots.");
-            toolTip1.SetToolTip(xCoord_TB, "Textbox to type the xCoordinate for screenshoot.");
-            toolTip1.SetToolTip(yCoord_TB, "Textbox to type the y coordinate for screenshot.");
+            originalPanel1Size = panel1.Size;
+
             toolTip1.SetToolTip(waitB4_TB, "Textbox to type the amount of miliseconds you want the program to wait prior to each screenshot (to convert seconds to miliseconds, multiply seconds by 1000");
             toolTip1.SetToolTip(waitAfter_TB, "Textbox to type the amount of miliseconds you want the program to wait after each screenshot.");
-            imageList1.ImageSize = new Size(screenshot_PB.Width, screenshot_PB.Height);
-            
+            //Rectangles to resize stuff with
+
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            filePath_TB.Text = "C:\\Users\\Johns\\Desktop\\SkyrimSEArchitecture\\meshes\\architectureInSameFolder";
-            saveFilePath_TB.Text = "C:\\Users\\Johns\\Pictures\\NifImages\\NifImagesTest";
-            screenshotWidth_TB.Text = "1512";
-            screenshotHeight_TB.Text = "922";
-            xCoord_TB.Text = "408";
-            yCoord_TB.Text = "93";
+            //Set initial size and location of panel1
+            panel1.Size = new Size(Screen.FromControl(this).WorkingArea.Width, Screen.FromControl(this).WorkingArea.Height);
             waitB4_TB.Text = "2000";
             waitAfter_TB.Text = "2000";
-            filePath_LB.BackColor = System.Drawing.Color.White;
+
         }
-        bool NumbersValidated(int ssHeight, int ssWidth, int xCoord, int yCoord, int waitB4, int waitAfter, Rectangle monitorBounds, string filePath)
+        bool NumbersValidated(int waitB4, int waitAfter, Rectangle monitorBounds, string filePath)
         {
             try
             {
-                monitorBounds = Screen.AllScreens[0].WorkingArea;
-                /*Since these values are going to be used to take a screeneshot, 
-                I should make sure that the user doesn't input any values that would mean the rectangle would extend past the monitor bounds.*/
-                if (int.TryParse(screenshotHeight_TB.Text, out int height) == true && int.TryParse(screenshotWidth_TB.Text, out int width) == true && int.TryParse(xCoord_TB.Text, out int xC) == true && int.TryParse(yCoord_TB.Text, out int yC) == true)
+                using (var folderBrowserDialog = new FolderBrowserDialog())
                 {
-                    if (height <= monitorBounds.Height && width <= monitorBounds.Width && xCoord <= monitorBounds.Width &&
-                           yCoord <= monitorBounds.Height)
+                    folderBrowserDialog.Description = "Select the folder that contains the files you want to screenshot";
+                    DialogResult result = folderBrowserDialog.ShowDialog();
+                    if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(folderBrowserDialog.SelectedPath))
                     {
-                        height = ssHeight;
-                        width = ssWidth;
-                        xC = xCoord;
-                        yC = yCoord;
+                        filePath = folderBrowserDialog.SelectedPath;
                     }
                     else
                     {
-                        MessageBox.Show("Something went wrong because you did not satisfy one or more of these conditions: \n 1. the width and x " +
-                            "coordinate of the screenshot must be smaller than or equal to the resolution width of the monitor the screenshot " +
-                            "will be taken on; \n 2. The height and y coordinate of the screenshot must be smaller than or equal to " +
-                            "the height resolution of the monitor the screenshot will be taken on.");
+                        MessageBox.Show("Something went wrong");
+                        return false;
                     }
                 }
-                else
+                using (var folderBD = new FolderBrowserDialog())
                 {
-                    return false;
+                    folderBD.Description = "Select the folder that contains the files you want to screenshot";
+                    DialogResult result = folderBD.ShowDialog();
+                    if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(folderBD.SelectedPath))
+                    {
+                        savePath = folderBD.SelectedPath;
+                    }
+                    else
+                    {
+                        MessageBox.Show("Something went wrong");
+                        return false;
+                    }
                 }
+                monitorBounds = Screen.AllScreens[0].WorkingArea;
+                /*Since these values are going to be used to take a screeneshot, 
+                I should make sure that the user doesn't input any values that would mean the rectangle would extend past the monitor bounds.*/
+
                 if (int.TryParse(waitAfter_TB.Text, out int waitA) == true && int.TryParse(waitB4_TB.Text, out int waitB) == true)
                 {
                     if (waitA >= 0 && waitB >= 0)
@@ -108,24 +115,8 @@ namespace ScreenShotAutoPlus
                 {
                     return false;
                 }
-                DirectoryInfo fileD = new DirectoryInfo(filePath_TB.Text);
-                DirectoryInfo saveD = new DirectoryInfo(saveFilePath_TB.Text);
-                if (fileD.Exists)
-                {
-                    filePath = fileD.FullName;
-                }
-                else
-                {
-                    return false;
-                }
-                if (saveD.Exists)
-                {
-                    savePath = saveD.FullName;
-                }
-                else
-                {
-                    return false;
-                }
+
+                
             }
             catch (Exception f)
             {
@@ -138,15 +129,14 @@ namespace ScreenShotAutoPlus
         }
         private void Import_BTN_Click(object sender, EventArgs e)
         {
-            int ssHeight = 0;
-            int ssWidth = 0;
-            int xCoord = 0;
-            int yCoord = 0;
+            string filePath = "";
+            
+            
             int waitB4 = 0;
             int waitAfter = 0;
             Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
-            string filePath = filePath_TB.Text;
-            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter, monitorBounds, filePath) == true)
+     
+            if (NumbersValidated(waitB4, waitAfter, monitorBounds, filePath) == true)
             {
                 try
                 {
@@ -168,19 +158,129 @@ namespace ScreenShotAutoPlus
                 totalScreenshots = filePath_LB.Items.Count;
             }
         }
-       
+        private async Task<Size> CalculateStuff(int[] info)
+        {
+            Screen theScreen = Screen.FromControl(this);
+            int initialWidth = theScreen.WorkingArea.Width;
+            int initialHeight = theScreen.WorkingArea.Height;
+
+            int xCoord = 0;
+            int yCoord = 0;
+            Size theSize = new Size(initialWidth, initialHeight);
+            using (Process firstProcess = new Process())
+            {
+                firstProcess.StartInfo.FileName = "nifskope.exe";
+                firstProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                firstProcess.Start();
+                Task<Bitmap> fSS = FirstScreenshot(ref initialWidth, ref initialHeight);
+                Bitmap initialSS = await fSS;
+                Task<Point> calc = CalculateCoords(xCoord, yCoord, ref initialSS);
+                Point thePoint = await calc;
+                theSize = CalculateScreenshotSize(ref xCoord, ref yCoord);
+                firstProcess.Kill();
+            }
+
+            info[0] = xCoord;
+            info[1] = yCoord;
+            Task resize = ResizeUi(ref xCoord, ref yCoord);
+            await resize;
+
+            return theSize; //size the ss will be, NOT the ui
+        }
+
+
+        private Task<Bitmap> FirstScreenshot(ref int initialWidth, ref int initialHeight)
+        {
+            Bitmap initialSS = new Bitmap(initialWidth, initialHeight);
+            Graphics firstSSGraphics = Graphics.FromImage(initialSS);
+
+            Size size = new Size(initialWidth, initialHeight);
+            firstSSGraphics.CopyFromScreen(0, 0, 0, 0, size);
+            return Task.FromResult(initialSS);
+
+        }
+        private Task<Point> CalculateCoords(int xCoord, int yCoord, ref Bitmap initialSS)
+        {
+
+            Color bingoColor = Color.FromArgb(255, 46, 46, 46);
+            Screen theS = Screen.FromControl(this);
+            int halfX = theS.WorkingArea.Width / 2;
+            int halfY = theS.WorkingArea.Height / 2;
+            Color menuColor = initialSS.GetPixel(halfX, 2);
+            for (int tempY = 2; halfY < theS.WorkingArea.Height;)
+            {
+                tempY++;
+                menuColor = initialSS.GetPixel(halfX, tempY);
+                if (menuColor != bingoColor)
+                {
+                    continue;
+                }
+                else
+                {
+                    yCoord = tempY - 1;
+                }
+            }
+            for (int tempX = 2; tempX < theS.WorkingArea.Width;)
+            {
+                tempX++;
+                menuColor = initialSS.GetPixel(tempX, halfY);
+                if (menuColor != bingoColor)
+                {
+                    continue;
+                }
+                else
+                {
+                    xCoord = tempX - 1;
+                }
+                MessageBox.Show("Found coordinates!", "Success!", MessageBoxButtons.OK);
+
+            }
+            Point thePoint = new Point(xCoord, yCoord);
+
+            return Task.FromResult(thePoint);
+        }
+        private Size CalculateScreenshotSize(ref int xToSubtract, ref int yToSubtract)
+        {
+            Screen theS = Screen.FromControl(this);
+            int height = theS.WorkingArea.Height;
+            int width = theS.WorkingArea.Width;
+            int ssHeight = height - xToSubtract;
+            int ssWidth = width - yToSubtract;
+            Size theSize = new Size(ssWidth, ssHeight);
+            return theSize;
+        }
+     
+    private Task ResizeUi(ref int xCoord, ref int yCoord)
+    {
+        float xRatio = (float) xCoord/(float)originalPanel1Size.Width;
+        float yRatio = (float)yCoord/ (float)originalPanel1Size.Height;
+
+            foreach(Control con in panel1.Controls)
+            {
+                int sizeW = (int)(con.Size.Width * xRatio);
+                int sizeH = (int)(con.Size.Height * yRatio);
+                int newX = (int)(con.Location.X * xRatio);
+                int newY = (int)(con.Location.Y * yRatio);
+                con.Size = new Size(sizeW, sizeH);
+                con.Location = new Point(newX, newY);
+            }
+            //resize panel
+            int panelW = (int)(panel1.Size.Width * xRatio);
+            int panelH = (int)(panel1.Size.Height *yRatio);
+             panel1.Location = new Point(0, xCoord);
+            panel1.Size= new Size(panelW,panelH);
+        return Task.CompletedTask;
+    }
         private async void Start_BTN_Click(object sender, EventArgs e)
-        {   
-            int ssHeight = int.Parse(screenshotHeight_TB.Text);
-            int ssWidth = int.Parse(screenshotWidth_TB.Text);
-            int xCoord = int.Parse(xCoord_TB.Text);
-            int yCoord = int.Parse(yCoord_TB.Text);
+        {
+            int[] info = new int[2];
+           
             int waitB4 = int.Parse(waitB4_TB.Text);
             int waitAfter = int.Parse(waitAfter_TB.Text);
             Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
             int screenshotsLeft;
-            string filePath = filePath_TB.Text;
-            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter, monitorBounds, filePath) == true)
+            string filePath = "";
+            if (NumbersValidated(waitB4, waitAfter, monitorBounds, filePath) == true)
             {
                 DialogResult result = MessageBox.Show("If you press yes, this program will automatically " +
                     "click once on nifskope and then click the load view button in nifskope for every screenshot. " +
@@ -207,7 +307,7 @@ namespace ScreenShotAutoPlus
                                     Thread.Sleep(waitB4);
                                     Task<bool> button = AutomaticButtonPress();
                                     buttonPressed = await button;
-                                    Task<int> screenshot = ScreenshotMethod(ref ssWidth, ref ssHeight, ref xCoord, ref yCoord, ref startTime);
+                                    Task<int> screenshot = ScreenshotMethod(ref theSize, ref info, ref startTime);
                                     completedScreenshots = await screenshot;
                                     DateTime screenshotDone = DateTime.Now;
                                     Thread.Sleep(waitAfter);
@@ -252,7 +352,7 @@ namespace ScreenShotAutoPlus
                                     myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
                                     myProcess.Start();
                                     Thread.Sleep(waitB4);
-                                    Task<int> screenshot = ScreenshotMethod(ref ssWidth, ref ssHeight, ref xCoord, ref yCoord, ref startTime);
+                                    Task<int> screenshot = ScreenshotMethod(ref theSize, ref info, ref startTime);
                                     completedScreenshots = await screenshot;
                                     DateTime screenshotDone = DateTime.Now;
                                     Thread.Sleep(waitAfter);
@@ -303,17 +403,17 @@ namespace ScreenShotAutoPlus
             }
             return Task.FromResult(buttonPressed);
         }
-        private Task<int> ScreenshotMethod(ref int ssWidth, ref int ssHeight, ref int xCoord, ref int yCoord, ref DateTime startTime)
+        private Task<int> ScreenshotMethod(ref Size theSize, ref int[] info, ref DateTime startTime)
         {
             try
             {
-                Point coords = new Point(xCoord, yCoord);
+                Point coords = new Point(info[0], info[1]);
                 Point dest = new Point(0, 0);
-                Size size = new Size(ssWidth, ssHeight);
-                Rectangle rect = new Rectangle(coords, size);
+                
+  
                 Bitmap nif = new Bitmap(ssWidth, ssHeight);   
                 Graphics graphicsNif = Graphics.FromImage(nif);
-                graphicsNif.CopyFromScreen(coords, dest, size);
+                graphicsNif.CopyFromScreen(coords, dest, theSize);
                 string TreeNodeNameRevised = fileName_LB.Items[completedScreenshots].ToString().Replace(".nif", string.Empty);
                 nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
                 imageList1.Images.Add(nif);
@@ -378,18 +478,17 @@ namespace ScreenShotAutoPlus
         }
         private async void CalculateTimeBTN_Click(object sender, EventArgs e)
         {
-            int ssHeight = 0;
-            int ssWidth = 0;
-            int xCoord = 0;
-            int yCoord = 0;
+            int[] info = new int[2];
+            Task<Size> calcThings = CalculateStuff(info);
+            Size theSize = await calcThings;
             int waitB4 = 0;
             int waitAfter = 0;
             DateTime startCalcTime;
             DateTime endCalcTime;
-            string filePath = filePath_TB.Text;
+            string filePath = "";
             Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
             //MAKE ABSOLUTELY SURE TO MAKE THE VALUE OF WAITB4 to wT!!
-            if (NumbersValidated(ssHeight, ssWidth, xCoord, yCoord, waitB4, waitAfter, monitorBounds, filePath) == true)
+            if (NumbersValidated(waitB4, waitAfter, monitorBounds, filePath) == true)
             {
                 try
                 {
