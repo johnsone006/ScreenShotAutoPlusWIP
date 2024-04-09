@@ -17,23 +17,12 @@ namespace ScreenShotAutoPlus
 {
     public partial class Form1 : Form
     {
-        //This is a bool that I have been attempting to use to pause the screenshot process.
-        //In other words, make the program cease opening, screenshotting, and closing nifskope.
         private bool isPaused;
-        //This line of code is meant to ensure that nifskope always opens on the same monitor. 
-        //self explanatory
-        int completedScreenshots;
-
-        int totalScreenshots;
-        int timeRemaining;
-
-        TimeSpan screenshotTime;
-        bool buttonPressed;
-        string savePath;
+        //This next variable needs to be a global instance variable because I do not want to have to select the correct folder for multiple methods.
         string filePath;
+        //The following two need to be global variables because they need to be equal to the size of topPaneL and panel1 WHEN THE PROGRAM FIRST OPENS.
         private Size topPanel_OS;
         private Size panel1_OS;
-     
         private TaskCompletionSource<bool> pauseCompletionSource;
         Size theSize;
         public Form1()
@@ -44,20 +33,17 @@ namespace ScreenShotAutoPlus
             pauseCompletionSource = new TaskCompletionSource<bool>();
             pauseCompletionSource.SetResult(false);
             topPanel_OS = new Size(topPanel.Width, topPanel.Height);
-            imageList1.ImageSize = new Size(screenshot_PB.Width, screenshot_PB.Height);
-        
+            panel1_OS = new Size(panel1.Width, panel1.Height);
         }
         private void Form1_Load(object sender, EventArgs e)
         {
             //I have officially gotten tired of typing in my values every time I hit debug. So the following statement will only remain here until I get this program working correctly.
             colorCode_TB.Text = "#f72ee0";
-           
         }
         private string OpenAndValidateFP()
         {
             try
             {
-
                 using (FolderBrowserDialog fbd = new FolderBrowserDialog())
                 {
                     fbd.Description = "Please select the folder that contains the files to be screenshotted. Remember, this program is not meant to be used to engage in copyright infringement.";
@@ -77,7 +63,7 @@ namespace ScreenShotAutoPlus
             }
             return filePath;
         }
-        private string OpenAndValidateSP()
+        private string OpenAndValidateSP(string savePath)
         {
             try
             {
@@ -119,7 +105,6 @@ namespace ScreenShotAutoPlus
                 {
                     return false;
                 }
-
             }
             catch (Exception f)
             {
@@ -128,21 +113,18 @@ namespace ScreenShotAutoPlus
                     $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
                 return false;
             }
-
             return true;
         }
         private void Import_BTN_Click(object sender, EventArgs e)
         {
-
             int waitB4 = 0;
             int waitAfter = 0;
-
+            
             Rectangle monitorBounds = Screen.FromControl(this).WorkingArea;
-            OpenAndValidateFP();
-
-
+            
             if (NumbersValidated(waitB4, waitAfter, monitorBounds) == true)
             {
+                OpenAndValidateFP();
                 try
                 {
                     DirectoryInfo di = new DirectoryInfo(filePath);
@@ -158,20 +140,18 @@ namespace ScreenShotAutoPlus
                         $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
                         $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
                 }
-
-                //I'm implementing a try catch block here so I can make sure the filePath_LB is filled before I do this:
-                totalScreenshots = filePath_LB.Items.Count;
             }
         }
-
         private async void Start_BTN_Click(object sender, EventArgs e)
         {
-
+            int totalScreenshots = filePath_LB.Items.Count;
             int waitB4 = int.Parse(waitB4_TB.Text);
             int waitAfter = int.Parse(waitAfter_TB.Text);
-            Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
+            int completedScreenshots =0;
+            Rectangle monitorBounds = Screen.FromControl(this).WorkingArea;
             int screenshotsLeft;
-            OpenAndValidateSP();
+            string savePath = "";
+            savePath = OpenAndValidateSP(savePath);
             if (NumbersValidated(waitB4, waitAfter, monitorBounds) == true)
             {
                 DialogResult result = MessageBox.Show("If you press yes, this program will automatically " +
@@ -179,9 +159,10 @@ namespace ScreenShotAutoPlus
                     "Is this acceptable?", "Important question", MessageBoxButtons.YesNoCancel);
                 if (result == DialogResult.Yes)
                 {
+                    
                     for (int i = 0; i < totalScreenshots; i++)
                     {
-                        long spaceAvailable = GetSpaceAvailability();
+                        long spaceAvailable = GetSpaceAvailability(savePath);
                         if (spaceAvailable != 0)
                         {
                             await pauseCompletionSource.Task;
@@ -197,18 +178,17 @@ namespace ScreenShotAutoPlus
                                     myProcess.Start();
                                     Thread.Sleep(waitB4);
                                     Task<bool> button = AutomaticButtonPress();
-                                    buttonPressed = await button;
-                                    Task<int> screenshot = ScreenshotMethod(ref startTime);
+                                    bool buttonPressed = await button;
+                                    Task<int> screenshot = ScreenshotMethod(ref completedScreenshots, savePath);
                                     completedScreenshots = await screenshot;
                                     DateTime screenshotDone = DateTime.Now;
                                     Thread.Sleep(waitAfter);
-                                    screenshotTime = (screenshotDone - startTime);
-                                    int screenshotsRemaining = CalculateRemainingScreenshots();
-                                    int time = EstimateTimeRemaining(ref screenshotsRemaining);
+                                    TimeSpan screenshotTime = (screenshotDone - startTime);
+                                    int screenshotsRemaining = CalculateRemainingScreenshots(completedScreenshots, totalScreenshots);
+                                    int timeRemaining = EstimateTimeRemaining(ref screenshotsRemaining,screenshotTime);
                                     screenshotsLeft = screenshotsRemaining;
-                                    Task<bool> ui = UpdateUI(ref screenshotsRemaining, ref completedScreenshots, screenshotsLeft);
+                                    Task<bool> ui = UpdateUI(ref screenshotsRemaining, completedScreenshots, screenshotsLeft, timeRemaining);
                                     bool updateDone = await ui;
-
                                     myProcess.Kill();
                                 }
                                 catch (Exception f)
@@ -226,9 +206,10 @@ namespace ScreenShotAutoPlus
                 }
                 else if (result == DialogResult.No)
                 {
+                    
                     while (completedScreenshots != totalScreenshots)
                     {
-                        long spaceAvailable = GetSpaceAvailability();
+                        long spaceAvailable = GetSpaceAvailability(savePath);
                         if (spaceAvailable != 0)
                         {
                             await pauseCompletionSource.Task;
@@ -242,15 +223,15 @@ namespace ScreenShotAutoPlus
                                     myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
                                     myProcess.Start();
                                     Thread.Sleep(waitB4);
-                                    Task<int> screenshot = ScreenshotMethod(ref startTime);
+                                    Task<int> screenshot = ScreenshotMethod(ref completedScreenshots, savePath);
                                     completedScreenshots = await screenshot;
                                     DateTime screenshotDone = DateTime.Now;
                                     Thread.Sleep(waitAfter);
-                                    screenshotTime = (screenshotDone - startTime);
-                                    int screenshotsRemaining = CalculateRemainingScreenshots();
+                                    TimeSpan screenshotTime = (screenshotDone - startTime);
+                                    int screenshotsRemaining = CalculateRemainingScreenshots(completedScreenshots, totalScreenshots);
                                     screenshotsLeft = screenshotsRemaining;
-                                    int time = EstimateTimeRemaining(ref screenshotsRemaining);
-                                    Task<bool> ui = UpdateUI(ref screenshotsRemaining, ref completedScreenshots, screenshotsLeft);
+                                    int timeRemaining = EstimateTimeRemaining(ref screenshotsRemaining, screenshotTime);
+                                    Task<bool> ui = UpdateUI(ref screenshotsRemaining, completedScreenshots, screenshotsLeft, timeRemaining);
                                     bool updateDone = await ui;
                                     myProcess.Kill();
                                 }
@@ -269,7 +250,7 @@ namespace ScreenShotAutoPlus
                 }
             }
         }
-        private long GetSpaceAvailability()
+        private long GetSpaceAvailability(string savePath)
         {
             string driveRoot = Path.GetPathRoot(savePath);
             DriveInfo driveInfo = new DriveInfo(driveRoot);
@@ -278,6 +259,7 @@ namespace ScreenShotAutoPlus
         }
         private Task<bool> AutomaticButtonPress()
         {
+            bool buttonPressed;
             try
             {
                 MouseEventArgs args = new MouseEventArgs(MouseButtons.Left, 1, 810, 533, 0);
@@ -293,18 +275,23 @@ namespace ScreenShotAutoPlus
             }
             return Task.FromResult(buttonPressed);
         }
-        private Task<int> ScreenshotMethod(ref DateTime startTime)
+        private Task<int> ScreenshotMethod(ref int completedScreenshots, string savePath)
         {
             try
             {
-                OpenAndValidateSP();
-                //Graphics graphicsNif = Graphics.FromImage(nif);
-                //graphicsNif.CopyFromScreen(coords, dest, size);
-
+                Size size = theSize;
+                int xCoordinate = panel1.Width;
+                int yCoordinate = topPanel.Height;
+                Point coords = new Point(xCoordinate, yCoordinate);
+                Point dest = new Point(0, 0);
+                Bitmap nif = new Bitmap(size.Width, size.Height);
+                Graphics graphicsNif = Graphics.FromImage(nif);
+                graphicsNif.CopyFromScreen(coords, dest, size);
                 string TreeNodeNameRevised = fileName_LB.Items[completedScreenshots].ToString().Replace(".nif", string.Empty);
-                //nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
-                //imageList1.Images.Add(nif);
-                screenshotTime = (DateTime.Now - startTime);
+                nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                imageList1.ImageSize = screenshot_PB.Size;
+                imageList1.Images.Add(nif);
+            
                 completedScreenshots++;
             }
             catch (Exception f)
@@ -315,17 +302,17 @@ namespace ScreenShotAutoPlus
             }
             return Task.FromResult(completedScreenshots);
         }
-        private int CalculateRemainingScreenshots()
+        private int CalculateRemainingScreenshots(int completedScreenshots, int totalScreenshots)
         {
             int screenshotsRemaining = totalScreenshots - completedScreenshots;
             return screenshotsRemaining;
         }
-        private int EstimateTimeRemaining(ref int screenshotsRemaining)
+        private int EstimateTimeRemaining(ref int screenshotsRemaining, TimeSpan screenshotTime)
         {
-            timeRemaining = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
+            int timeRemaining = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
             return timeRemaining;
         }
-        private Task<bool> UpdateUI(ref int screenshotsRemaining, ref int completedScreenshots, int screenshotsLeft)
+        private Task<bool> UpdateUI(ref int screenshotsRemaining, int completedScreenshots, int screenshotsLeft, int timeRemaining)
         {
             screenshotsLeft = screenshotsRemaining;
             string screenshotFile = fileName_LB.Items[completedScreenshots].ToString();
@@ -365,14 +352,11 @@ namespace ScreenShotAutoPlus
         }
         private async void CalculateTimeBTN_Click(object sender, EventArgs e)
         {
-
-            //measure time
             int waitB4 = 0;
             int waitAfter = 0;
-            DateTime startCalcTime;
-            DateTime endCalcTime;
             int xCoord = 0;
             int yCoord = 0;
+           
             Rectangle monitorBounds = Screen.AllScreens[0].WorkingArea;
             //MAKE ABSOLUTELY SURE TO MAKE THE VALUE OF WAITB4 to wT!!
             if (NumbersValidated(waitB4, waitAfter, monitorBounds) == true)
@@ -385,24 +369,19 @@ namespace ScreenShotAutoPlus
                         theProcess.StartInfo.FileName = fileInfo;
                         theProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
                         theProcess.Start();
-                        startCalcTime = DateTime.Now;
-                        Thread.Sleep(waitAfter);
-                        await AutomaticButtonPressForCalculation();
-
-                        theProcess.WaitForInputIdle();
-                        Thread.Sleep(500);
-                        endCalcTime = DateTime.Now;
+                        Thread.Sleep(1000);
                         Task<Bitmap> img = FirstScreenshot();
                         Bitmap initialSS = await img;
-                        Task<Point> coordinateCalculation = CalculateCoords(ref xCoord, ref yCoord, ref initialSS);
-                        Point thePoint = await coordinateCalculation;
-                        theSize = CalculateScreenshotSize(xCoord, yCoord);
-                        await ResizeUI(xCoord, yCoord);
+                        Task<Color> convert = ConvertHex();
+                        Color bingoColor = await convert;
+                        Task <int[]> coordinateCalculation = CalculateCoords(ref xCoord, ref yCoord, initialSS,bingoColor);
+                        int[] coords = await coordinateCalculation;
+                        Task<int[]> resize = ResizeUI(coords[0], coords[1]);
+                        int[] ssSize = await resize; //index 0 is width of panel1; index 1 is height of topPanel
+                        theSize = CalculateScreenshotSize(ssSize[0], ssSize[1], initialSS);
                         initialSS.Dispose();
                         theProcess.Kill();
                     }
-                    int wT = (int)(endCalcTime - startCalcTime).TotalSeconds;
-                    stateTxt.Text = wT.ToString();
                 }
                 catch (Exception f)
                 {
@@ -410,7 +389,7 @@ namespace ScreenShotAutoPlus
                         $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n +" +
                         $" StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
                 }
-                MessageBox.Show("Time calculated!");
+                MessageBox.Show("Size and stuff calculated!");
             }
         }
         private Task<Bitmap> FirstScreenshot()
@@ -421,146 +400,179 @@ namespace ScreenShotAutoPlus
             Graphics firstSSGraphic = Graphics.FromImage(initialSS);
             Size size = new Size(initialWidth, initialHeight);
             firstSSGraphic.CopyFromScreen(0, 0, 0, 0, size);
-    
+           
             return Task.FromResult(initialSS);
         }
-        private Task<Point> CalculateCoords(ref int xCoord, ref int yCoord, ref Bitmap initialSS)
+        private Task<Color> ConvertHex()
         {
-            string hexadecimalCode = colorCode_TB.Text;
-            Color bingoColor = ColorTranslator.FromHtml(hexadecimalCode);
-            Screen theS = Screen.FromControl(this);
-            int starterX = initialSS.Width - 5;
-
-            Color menuColor = initialSS.GetPixel(starterX, 2);
-            //Figure out y coordinate of location for future screenshots
-            for (int tempY = 2; tempY < initialSS.Height;)
-            {
-                tempY++;
-                menuColor = initialSS.GetPixel(starterX, tempY);
-                if (bingoColor.Equals(menuColor))
-                {
-                    yCoord = tempY - 1;
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            //Figure out x coordinate of location for future screenshots
-            for (int tempX = 0; tempX < initialSS.Width;)
-            {
-                tempX++;
-                menuColor = initialSS.GetPixel(tempX, (initialSS.Height / 2));
-                if (bingoColor.Equals(menuColor))
-                {
-                    xCoord = tempX - 1;
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            Point thePoint = new Point(xCoord, yCoord);
-            return Task.FromResult(thePoint);
+            string hexadecimalNumber = colorCode_TB.Text;
+            if (hexadecimalNumber.StartsWith("#"))
+            hexadecimalNumber = hexadecimalNumber.Substring(1);
+            int r = Convert.ToInt32(hexadecimalNumber.Substring(0, 2), 16);
+            int g = Convert.ToInt32(hexadecimalNumber.Substring(2, 2), 16);
+            int b = Convert.ToInt32(hexadecimalNumber.Substring(4, 2), 16);
+            Color bingoColor = Color.FromArgb(255, r, g, b);
+            return Task.FromResult(bingoColor);
         }
-        private Size CalculateScreenshotSize(int xCoord, int yCoord)
+        private Task<int[]> CalculateCoords(ref int xCoord, ref int yCoord, Bitmap initialSS, Color bingoColor)
         {
-
-            Screen theS = Screen.FromControl(this);
-            int height = theS.WorkingArea.Height;
-            int width = theS.WorkingArea.Width;
-            int ssWidth = width - xCoord;
-            int ssHeight = height - yCoord;
+            Color menuColor;
+            int tempY =2;
+            try
+            {
+                int starterX = initialSS.Width - 5;
+          
+                //Figure out y coordinate of location for future screenshots
+                for (tempY=2; tempY < initialSS.Height;)
+                {
+                    tempY++;
+                    menuColor = initialSS.GetPixel(starterX, tempY);
+                    if (bingoColor.Equals(menuColor))
+                    {
+                        yCoord = tempY;
+                        break;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                //Figure out x coordinate of location for future screenshots
+                tempY += 5;
+                for (int tempX = 0; tempX < initialSS.Width;)
+                {
+                    tempX++;
+                    menuColor = initialSS.GetPixel(tempX, tempY);
+                    if (bingoColor.Equals(menuColor))
+                    {
+                        xCoord = tempX;
+                        break;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+            }
+            catch(Exception f)
+            {
+                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n +" +
+                   $" InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: " +
+                   $"{f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite} \n {tempY}\n{bingoColor}\n {tempY}", "Error", MessageBoxButtons.OK);
+            }
+            int[] coords = { xCoord, yCoord };
+            return Task.FromResult(coords);
+        }
+        private Size CalculateScreenshotSize(int width, int height, Bitmap initialSS)
+        {
+            int ssWidth = initialSS.Width - width;
+            int ssHeight = initialSS.Height - height;
             Size theSize = new Size(ssWidth, ssHeight);
             return theSize;
         }
-        private Task ResizeUI(int xCoord, int yCoord)
+        private Task<int[]> ResizeUI(int xCoord, int yCoord)
         {
-            Size originalPanel1Size = panel1.Size;
-            Size originalTopPanelSize = topPanel.Size;
-            float xMultiply = xCoord / originalPanel1Size.Width;
-            float yMultiply = yCoord / originalTopPanelSize.Height;
-            if(yCoord == originalTopPanelSize.Height)
+          
+            float xMultiply = xCoord / panel1_OS.Width; //This is how much the size of all controls (except topPanel) will change in width.
+            float yMultiply = yCoord / topPanel_OS.Height;//this is how much the size of all controls (except topPanel) will change in height.
+            if (yCoord == topPanel_OS.Height)
             {
-                if (xCoord == originalPanel1Size.Width)
+                if (xCoord == panel1_OS.Width)
                 {
                     //Somehow, everything is sized perfectly already so change nothing.
+                    
                 }
                 else
                 {
-                    foreach(Control con in panel1.Controls)
+                    foreach (Control con in panel1.Controls)
                     {
-                        //this is the foreach  that **SHOULD** apply to mine. see the commit commit to see what happens instead.
-                         
-                        con.Anchor = AnchorStyles.Left;
-                        con.Size = new Size((int)(xMultiply * con.Width),(con.Height*1));
+                        con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                        int newWidth = (int)(con.Width * xMultiply);
+                        int newHeight = (int)(con.Height * yMultiply);
+                        con.Size = new Size(newWidth, newHeight);
                     }
                 }
             }
             else
             {
                 //height needs to change. 
-                if(xCoord == originalPanel1Size.Width)
+                if (xCoord == panel1_OS.Width)
                 {
                     //only height needs to change. 
-                    foreach(Control con in panel1.Controls)
+                    foreach (Control con in panel1.Controls)
                     {
-                      
+
                         con.Anchor = AnchorStyles.Top;
-                        con.Size = new Size(con.Width,(int)(yMultiply * con.Height));
+                        int newHeight = (int)(con.Height * yMultiply);
+                        con.Size = new Size(con.Width, newHeight);
+
                     }
                 }
                 else
                 {
                     //Both height and width needs to change.
-                    foreach(Control con in panel1.Controls)
+                    foreach (Control con in panel1.Controls)
                     {
                         con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
-                        con.Size = new Size((int)(xMultiply * con.Width), (int)(yMultiply * con.Height));
+                        int newHeight = (int)(con.Height * yMultiply);
+                        int newWidth = (int)(con.Width * xMultiply);
+                        con.Size = new Size(newWidth, newHeight);
                     }
                 }
             }
-            if(yCoord > originalTopPanelSize.Height)
+            if (yCoord > topPanel_OS.Height)
             {
                 //panel1 needs to be shorter. 
+
+                int toSubtract = yCoord - topPanel_OS.Height;
+                if (xCoord == panel1_OS.Width)
+                {
+                    //Only change height.
+                    int newHeight = panel1.Height - toSubtract;
+                    panel1.Height = newHeight;
+                    topPanel.Height = yCoord;
+                }
+                else if (xCoord > panel1_OS.Width || xCoord < panel1_OS.Width)
+                {
+                    //change both height and width of panel1.
+                    int newHeight = panel1.Height - toSubtract;
+                    int newWidth = panel1.Width - toSubtract; 
+                    panel1.Size = new Size(newWidth, newHeight);
+                    topPanel.Height = yCoord;
+                }
                
-                int toSubtract = yCoord - originalTopPanelSize.Height;
-                panel1.Size =  new Size(xCoord, panel1.Height - toSubtract);
+            }
+            else if (yCoord < topPanel_OS.Height)
+            {
+               int toAdd = topPanel_OS.Height - yCoord;
+               if(xCoord == panel1_OS.Width)
+                {
+                    //only change height.
+                    int newHeight = panel1.Height + toAdd;
+                    panel1.Height = newHeight;
+                    topPanel.Height = yCoord;
+                }
+               else if(xCoord > panel1_OS.Width || xCoord < panel1_OS.Width)
+                {
+                    int newHeight = panel1.Height + toAdd;
+                    panel1.Size = new Size(xCoord, newHeight);
+                    topPanel.Height = yCoord;
+                }
+             
+            }
+            else if(yCoord == topPanel_OS.Height)
+            {
+                panel1.Size = new Size(xCoord, panel1.Height);
                 topPanel.Height = yCoord;
+                
             }
-            else if (yCoord < originalTopPanelSize.Height)
-            {
-               int toAdd = originalTopPanelSize.Height - yCoord;
-                panel1.Size = new Size(xCoord, (panel1.Height + toAdd));
-            }
-            filePathSize_TB.Text = processStatus_LBL.Size.ToString();
-            panel1Size_TB.Text = panel1.Width.ToString();
-            return Task.CompletedTask;
+            
+            int[] newSizes = new int[2];
+            newSizes[0] = panel1.Width;
+            newSizes[1] = topPanel.Height;
+            return Task.FromResult(newSizes);
         }
-
-        private Task AutomaticButtonPressForCalculation()
-        {
-            try
-            {
-                MouseEventArgs args2 = new MouseEventArgs(MouseButtons.Left, 1, 810, 533, 0);
-                OnMouseDown(args2);
-                OnMouseUp(args2);
-                SendKeys.SendWait("{F8}");
-                SendKeys.SendWait("{z}");
-
-            }
-            catch (Exception f)
-            {
-                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n +" +
-                    $" InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: " +
-                    $"{f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
-
-            }
-            return Task.CompletedTask;
-        }
-        private void screenshotFiles_LB_MouseClick(object sender, MouseEventArgs e)
+        private void ScreenshotFiles_LB_MouseClick(object sender, MouseEventArgs e)
         {
             try
             {

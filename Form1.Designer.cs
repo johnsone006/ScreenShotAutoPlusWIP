@@ -39,12 +39,10 @@
             this.fileName_LB = new System.Windows.Forms.ListBox();
             this.filePath_LB = new System.Windows.Forms.ListBox();
             this.import_BTN = new System.Windows.Forms.Button();
-            this.waitAfter_LBL = new System.Windows.Forms.Label();
             this.Start_BTN = new System.Windows.Forms.Button();
             this.pauseAndPlay_BTN = new System.Windows.Forms.Button();
             this.processStatus_LBL = new System.Windows.Forms.Label();
             this.screenshotNumber_LBL = new System.Windows.Forms.Label();
-            this.waitB4_LBL = new System.Windows.Forms.Label();
             this.timeLeft_LBL = new System.Windows.Forms.Label();
             this.stateTxt = new System.Windows.Forms.TextBox();
             this.CalculateTimeBTN = new System.Windows.Forms.Button();
@@ -52,35 +50,33 @@
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
             this.label1 = new System.Windows.Forms.Label();
-            this.filePathSize_TB = new System.Windows.Forms.TextBox();
-            this.panel1Size_TB = new System.Windows.Forms.TextBox();
-            this.topPanel.SuspendLayout();
+            this.waitB4_LBL = new System.Windows.Forms.Label();
+            this.waitAfter_LBL = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // topPanel
             // 
-            this.topPanel.Controls.Add(this.panel1Size_TB);
-            this.topPanel.Controls.Add(this.filePathSize_TB);
             this.topPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.topPanel.Location = new System.Drawing.Point(0, 0);
             this.topPanel.Name = "topPanel";
-            this.topPanel.Size = new System.Drawing.Size(1980, 93);
+            this.topPanel.Size = new System.Drawing.Size(1980, 91);
             this.topPanel.TabIndex = 22;
             // 
             // waitB4_TB
             // 
-            this.waitB4_TB.Location = new System.Drawing.Point(48, 56);
+            this.waitB4_TB.Location = new System.Drawing.Point(48, 74);
             this.waitB4_TB.Name = "waitB4_TB";
             this.waitB4_TB.Size = new System.Drawing.Size(100, 22);
             this.waitB4_TB.TabIndex = 14;
             this.toolTip1.SetToolTip(this.waitB4_TB, "Type the number of miliseconds you want the program to wait prior to taking each " +
         "screenshot");
+            this.waitB4_TB.WordWrap = false;
             // 
             // waitAfter_TB
             // 
-            this.waitAfter_TB.Location = new System.Drawing.Point(48, 133);
+            this.waitAfter_TB.Location = new System.Drawing.Point(48, 183);
             this.waitAfter_TB.Name = "waitAfter_TB";
             this.waitAfter_TB.Size = new System.Drawing.Size(100, 22);
             this.waitAfter_TB.TabIndex = 15;
@@ -89,7 +85,7 @@
             // 
             // colorCode_TB
             // 
-            this.colorCode_TB.Location = new System.Drawing.Point(48, 212);
+            this.colorCode_TB.Location = new System.Drawing.Point(48, 267);
             this.colorCode_TB.Name = "colorCode_TB";
             this.colorCode_TB.Size = new System.Drawing.Size(100, 22);
             this.colorCode_TB.TabIndex = 26;
@@ -112,9 +108,9 @@
             // 
             this.fileName_LB.FormattingEnabled = true;
             this.fileName_LB.ItemHeight = 16;
-            this.fileName_LB.Location = new System.Drawing.Point(12, 384);
+            this.fileName_LB.Location = new System.Drawing.Point(12, 418);
             this.fileName_LB.Name = "fileName_LB";
-            this.fileName_LB.Size = new System.Drawing.Size(173, 100);
+            this.fileName_LB.Size = new System.Drawing.Size(190, 52);
             this.fileName_LB.TabIndex = 16;
             // 
             // filePath_LB
@@ -123,15 +119,15 @@
             this.filePath_LB.FormattingEnabled = true;
             this.filePath_LB.HorizontalScrollbar = true;
             this.filePath_LB.ItemHeight = 16;
-            this.filePath_LB.Location = new System.Drawing.Point(11, 294);
+            this.filePath_LB.Location = new System.Drawing.Point(11, 362);
             this.filePath_LB.Name = "filePath_LB";
-            this.filePath_LB.Size = new System.Drawing.Size(173, 84);
+            this.filePath_LB.Size = new System.Drawing.Size(190, 36);
             this.filePath_LB.TabIndex = 17;
             // 
             // import_BTN
             // 
             this.import_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.import_BTN.Location = new System.Drawing.Point(10, 249);
+            this.import_BTN.Location = new System.Drawing.Point(11, 317);
             this.import_BTN.Name = "import_BTN";
             this.import_BTN.Size = new System.Drawing.Size(186, 23);
             this.import_BTN.TabIndex = 18;
@@ -139,20 +135,10 @@
             this.import_BTN.UseVisualStyleBackColor = true;
             this.import_BTN.Click += new System.EventHandler(this.Import_BTN_Click);
             // 
-            // waitAfter_LBL
-            // 
-            this.waitAfter_LBL.AutoSize = true;
-            this.waitAfter_LBL.Location = new System.Drawing.Point(1, 91);
-            this.waitAfter_LBL.Name = "waitAfter_LBL";
-            this.waitAfter_LBL.Size = new System.Drawing.Size(232, 16);
-            this.waitAfter_LBL.TabIndex = 7;
-            this.waitAfter_LBL.Text = "Milisecond wait after each screenshot:";
-            this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
             // Start_BTN
             // 
             this.Start_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.Start_BTN.Location = new System.Drawing.Point(12, 547);
+            this.Start_BTN.Location = new System.Drawing.Point(63, 547);
             this.Start_BTN.Name = "Start_BTN";
             this.Start_BTN.Size = new System.Drawing.Size(61, 29);
             this.Start_BTN.TabIndex = 0;
@@ -163,7 +149,7 @@
             // pauseAndPlay_BTN
             // 
             this.pauseAndPlay_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.pauseAndPlay_BTN.Location = new System.Drawing.Point(12, 582);
+            this.pauseAndPlay_BTN.Location = new System.Drawing.Point(48, 582);
             this.pauseAndPlay_BTN.Name = "pauseAndPlay_BTN";
             this.pauseAndPlay_BTN.Size = new System.Drawing.Size(109, 28);
             this.pauseAndPlay_BTN.TabIndex = 1;
@@ -189,16 +175,6 @@
             this.screenshotNumber_LBL.TabIndex = 3;
             this.screenshotNumber_LBL.Text = "Number of screenshots:";
             // 
-            // waitB4_LBL
-            // 
-            this.waitB4_LBL.AutoSize = true;
-            this.waitB4_LBL.Location = new System.Drawing.Point(9, 15);
-            this.waitB4_LBL.Name = "waitB4_LBL";
-            this.waitB4_LBL.Size = new System.Drawing.Size(221, 16);
-            this.waitB4_LBL.TabIndex = 6;
-            this.waitB4_LBL.Text = "Milisecond wait prior to screenshots:";
-            this.waitB4_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
             // timeLeft_LBL
             // 
             this.timeLeft_LBL.AutoSize = true;
@@ -210,14 +186,14 @@
             // 
             // stateTxt
             // 
-            this.stateTxt.Location = new System.Drawing.Point(14, 490);
+            this.stateTxt.Location = new System.Drawing.Point(74, 490);
             this.stateTxt.Name = "stateTxt";
             this.stateTxt.Size = new System.Drawing.Size(47, 22);
             this.stateTxt.TabIndex = 21;
             // 
             // CalculateTimeBTN
             // 
-            this.CalculateTimeBTN.Location = new System.Drawing.Point(14, 518);
+            this.CalculateTimeBTN.Location = new System.Drawing.Point(48, 518);
             this.CalculateTimeBTN.Name = "CalculateTimeBTN";
             this.CalculateTimeBTN.Size = new System.Drawing.Size(109, 23);
             this.CalculateTimeBTN.TabIndex = 22;
@@ -234,7 +210,7 @@
             this.screenshotFiles_LB.Name = "screenshotFiles_LB";
             this.screenshotFiles_LB.Size = new System.Drawing.Size(178, 69);
             this.screenshotFiles_LB.TabIndex = 23;
-            this.screenshotFiles_LB.MouseClick += new System.Windows.Forms.MouseEventHandler(this.screenshotFiles_LB_MouseClick);
+            this.screenshotFiles_LB.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ScreenshotFiles_LB_MouseClick);
             // 
             // screenshot_PB
             // 
@@ -266,37 +242,44 @@
             this.panel1.Controls.Add(this.fileName_LB);
             this.panel1.Controls.Add(this.waitAfter_TB);
             this.panel1.Controls.Add(this.waitB4_TB);
-            this.panel1.Location = new System.Drawing.Point(0, 93);
+            this.panel1.Location = new System.Drawing.Point(0, 91);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(236, 947);
+            this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
             // 
             // label1
             // 
-            this.label1.Location = new System.Drawing.Point(7, 158);
+            this.label1.Location = new System.Drawing.Point(12, 208);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(189, 36);
             this.label1.TabIndex = 25;
             this.label1.Text = "Hex color code of background 4 viewport of nifskope:";
+            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // filePathSize_TB
+            // waitB4_LBL
             // 
-            this.filePathSize_TB.Location = new System.Drawing.Point(232, 12);
-            this.filePathSize_TB.Name = "filePathSize_TB";
-            this.filePathSize_TB.Size = new System.Drawing.Size(922, 22);
-            this.filePathSize_TB.TabIndex = 0;
+            this.waitB4_LBL.AutoEllipsis = true;
+            this.waitB4_LBL.Location = new System.Drawing.Point(3, 15);
+            this.waitB4_LBL.Name = "waitB4_LBL";
+            this.waitB4_LBL.Size = new System.Drawing.Size(221, 56);
+            this.waitB4_LBL.TabIndex = 6;
+            this.waitB4_LBL.Text = "Number of miliseconds for program to wait prior to each screenshot";
+            this.waitB4_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // panel1Size_TB
+            // waitAfter_LBL
             // 
-            this.panel1Size_TB.Location = new System.Drawing.Point(232, 52);
-            this.panel1Size_TB.Name = "panel1Size_TB";
-            this.panel1Size_TB.Size = new System.Drawing.Size(922, 22);
-            this.panel1Size_TB.TabIndex = 1;
+            this.waitAfter_LBL.Location = new System.Drawing.Point(3, 114);
+            this.waitAfter_LBL.Name = "waitAfter_LBL";
+            this.waitAfter_LBL.Size = new System.Drawing.Size(213, 48);
+            this.waitAfter_LBL.TabIndex = 7;
+            this.waitAfter_LBL.Text = "Number of miliseconds for program to wait  after each screenshot";
+            this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.AutoValidate = System.Windows.Forms.AutoValidate.EnableAllowFocusChange;
             this.BackColor = System.Drawing.Color.Silver;
             this.ClientSize = new System.Drawing.Size(1980, 1040);
@@ -312,8 +295,6 @@
             this.TransparencyKey = System.Drawing.Color.Silver;
             this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.Form1_Load);
-            this.topPanel.ResumeLayout(false);
-            this.topPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).EndInit();
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
@@ -331,12 +312,10 @@
         private System.Windows.Forms.ListBox fileName_LB;
         private System.Windows.Forms.ListBox filePath_LB;
         private System.Windows.Forms.Button import_BTN;
-        private System.Windows.Forms.Label waitAfter_LBL;
         private System.Windows.Forms.Button Start_BTN;
         private System.Windows.Forms.Button pauseAndPlay_BTN;
         private System.Windows.Forms.Label processStatus_LBL;
         private System.Windows.Forms.Label screenshotNumber_LBL;
-        private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label timeLeft_LBL;
         private System.Windows.Forms.TextBox stateTxt;
         private System.Windows.Forms.Button CalculateTimeBTN;
@@ -345,8 +324,8 @@
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.TextBox colorCode_TB;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.TextBox filePathSize_TB;
-        private System.Windows.Forms.TextBox panel1Size_TB;
+        private System.Windows.Forms.Label waitB4_LBL;
+        private System.Windows.Forms.Label waitAfter_LBL;
     }
 }
 
