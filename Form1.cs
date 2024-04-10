@@ -12,6 +12,7 @@ using System.Runtime.Remoting.Messaging;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.Diagnostics.Eventing.Reader;
+using System.Collections.Generic;
 
 namespace ScreenShotAutoPlus
 {
@@ -25,7 +26,6 @@ namespace ScreenShotAutoPlus
         private Size panel1_OS;
         private TaskCompletionSource<bool> pauseCompletionSource;
         Size theSize;
-        //The following needs to be a class instance variable so that the ProcessInfo can get the updated value for completed screenshots
         private int completedScreenshots;
         int id;
         public Form1()
@@ -45,8 +45,7 @@ namespace ScreenShotAutoPlus
             //the rest of the code in this block is what fixed the fact that the ui tended to sometimes either overlap or be overlaped by the taskbar.
             Size formSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
             this.Size = formSize;
-            this.Location = new Point (0, 0);
-        
+            this.Location = new Point(0, 0);
         }
         private string OpenAndValidateFP()
         {
@@ -132,21 +131,38 @@ namespace ScreenShotAutoPlus
             
             if (NumbersValidated(waitB4, waitAfter, monitorBounds) == true)
             {
+                List<string> invalidFiles = new List<string>();
                 OpenAndValidateFP();
                 try
                 {
                     DirectoryInfo di = new DirectoryInfo(filePath);
-                    foreach (var file in di.GetFiles())
+                    //Make sure it's nif files that are being added.
+                    foreach(var file in di.GetFiles())
                     {
-                        fileName_LB.Items.Add(file.Name);
-                        filePath_LB.Items.Add(file.FullName);
-                    }
+                        if(file.Extension == ".nif")
+                        {
+                            fileName_LB.Items.Add(file.Name);
+                            filePath_LB.Items.Add(file.FullName);
+                        }
+                        else
+                        {
+                            invalidFiles.Add(file.Name);
+                            continue;
+                        }
+                    }  
                 }
                 catch (Exception f)
                 {
                     MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
                         $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
                         $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                }
+                finally
+                {
+                    if (invalidFiles.Count > 0)
+                    {
+                        MessageBox.Show("Some of the files that were in the file path you chose were not imported because teh file extension was incorrect. This app is meant for .nif files specifically.", "Information", MessageBoxButtons.OK);
+                    }
                 }
             }
         }
@@ -165,36 +181,39 @@ namespace ScreenShotAutoPlus
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = fileInfo,
-                    WindowStyle = ProcessWindowStyle.Maximized,
-                    
+                    WindowStyle = ProcessWindowStyle.Maximized, 
                 };
                 using (Process theProcess = new Process { StartInfo = startInfo })
                 {
-                    try
+                    DialogResult result= MessageBox.Show("Do you plan to allow the program to automatically press the load view button prior to each screenshot?", "Question", MessageBoxButtons.YesNo);
+                    if(result == DialogResult.Yes)
                     {
-                        theProcess.Start();
-                        id = theProcess.Id;
-                        Thread.Sleep(1000);
-                        Task<Bitmap> img = FirstScreenshot();
-                        Bitmap initialSS = await img;
-                        Task<Color> convert = ConvertHex();
-                        Color bingoColor = await convert;
-                        Task<int[]> coordinateCalculation = CalculateCoords(ref xCoord, ref yCoord, initialSS, bingoColor);
-                        int[] coords = await coordinateCalculation;
-                        Task<int[]> resize = ResizeUI(coords[0], coords[1]);
-                        int[] ssSize = await resize; //index 0 is width of panel1; index 1 is height of topPanel
-                        theSize = CalculateScreenshotSize(ssSize[0], ssSize[1], initialSS);
-                        initialSS.Dispose();
-                        Task<bool> exit = CloseProcess();
-                        bool hasClosed = await exit;
-                    }
-                    catch (Exception f)
-                    {
-                        MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
-                        $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n +" +
-                        $" StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                        try
+                        {
+                            theProcess.Start();
+                            theProcess.WaitForInputIdle();
+                          
+                            Thread.Sleep(1000);
+                            Task<Bitmap> img = FirstScreenshot();
+                            Bitmap initialSS = await img;
+                            Task<Color> convert = ConvertHex();
+                            Color bingoColor = await convert;
+                            Task<int[]> coordinateCalculation = CalculateCoords(ref xCoord, ref yCoord, initialSS, bingoColor);
+                            int[] coords = await coordinateCalculation;
+                            Task<int[]> resize = ResizeUI(coords[0], coords[1]);
+                            int[] ssSize = await resize; //index 0 is width of panel1; index 1 is height of topPanel
+                            theSize = CalculateScreenshotSize(ssSize[0], ssSize[1], initialSS);
+                            initialSS.Dispose();
+                        }
+                        catch (Exception f)
+                        {
+                            MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
+                            $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n +" +
+                            $" StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                        }
                     }
                 }
+                MessageBox.Show("Stuff has been calculated, so after you close out the window of Nifskope that opened, you can press the start button now.");
             }
         }
         private Task<Bitmap> FirstScreenshot()
@@ -337,24 +356,12 @@ namespace ScreenShotAutoPlus
                     panel1.Size = new Size(xCoord, height);
                 }
             }
-
-
             int[] newSizes = new int[2];
             newSizes[0] = panel1.Width;
             newSizes[1] = topPanel.Height;
             return Task.FromResult(newSizes);
         }
-        private Task<bool> CloseProcess()
-        {
-            bool hasClosed = false;
-            if (!Process.GetProcessById(id).HasExited)
-            {
-                Process.GetProcessById(id).Kill();
-                Process.GetProcessById(id).WaitForExit();
-                hasClosed = true;
-            }
-            return Task.FromResult(hasClosed);
-        }
+        
         private async void Start_BTN_Click(object sender, EventArgs e)
         {
             int totalScreenshots = filePath_LB.Items.Count;
@@ -382,14 +389,16 @@ namespace ScreenShotAutoPlus
                         if (spaceAvailable != 0)
                         {
                             await pauseCompletionSource.Task;
-                            using (Process myProcess = new Process { StartInfo = processStartInfo})
+                            using (Process myProcess = new Process{StartInfo = processStartInfo})
                             {
                                 try
                                 {
-
+                                    
                                     DateTime startTime = DateTime.Now;
                                     myProcess.StartInfo.FileName = (string)filePath_LB.Items[completedScreenshots];
                                     myProcess.Start();
+                                    
+                                    myProcess.WaitForInputIdle();
                                     id = myProcess.Id;
                                     Thread.Sleep(waitB4);
                                     Task<bool> button = AutomaticButtonPress();
@@ -400,12 +409,20 @@ namespace ScreenShotAutoPlus
                                     Thread.Sleep(waitAfter);
                                     TimeSpan screenshotTime = (screenshotDone - startTime);
                                     int screenshotsRemaining = CalculateRemainingScreenshots(completedScreenshots, totalScreenshots);
-                                    int timeRemaining = EstimateTimeRemaining(ref screenshotsRemaining,screenshotTime);
+                                    int timeRemaining = EstimateTimeRemaining(ref screenshotsRemaining, screenshotTime);
                                     screenshotsLeft = screenshotsRemaining;
                                     Task<bool> ui = UpdateUI(ref screenshotsRemaining, completedScreenshots, screenshotsLeft, timeRemaining);
                                     bool updateDone = await ui;
-                                    Task<bool> exit = CloseProcess();
-                                    bool close = await exit;
+                                    //I can't use if(!myProcess.HasExited) because then guaranteed the program will think it has exited when it hasn't.
+                                    Task close = Task.Run(() =>
+                                    {
+                                        Process[] myProcs = Process.GetProcesses();
+                                        if (myProcs.Contains(myProcess))
+                                        {
+                                            myProcess.Kill();
+                                        }
+                                    });
+                                    await close;
                                 }
                                 catch (Exception f)
                                 {
@@ -422,7 +439,6 @@ namespace ScreenShotAutoPlus
                 }
                 else if (result == DialogResult.No)
                 {
-                    
                     while (completedScreenshots != totalScreenshots)
                     {
                         long spaceAvailable = GetSpaceAvailability(savePath);
@@ -438,6 +454,7 @@ namespace ScreenShotAutoPlus
                                     myProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
                                     myProcess.StartInfo.Arguments = $"-left {monitorBounds} -top {monitorBounds.Top} -width {monitorBounds.Width} -height {monitorBounds.Height}";
                                     myProcess.Start();
+                                    
                                     Thread.Sleep(waitB4);
                                     Task<int> screenshot = ScreenshotMethod(ref completedScreenshots, savePath);
                                     completedScreenshots = await screenshot;
@@ -466,6 +483,18 @@ namespace ScreenShotAutoPlus
                 }
             }
         }
+        private Task CloseProcess()
+        {
+            using(Process myProcess = Process.GetProcessById(id))
+            {
+                Process[] myProcs = Process.GetProcesses();
+                if (myProcs.Contains(myProcess))
+                {
+                    myProcess.Kill();
+                }
+            }
+            return Task.CompletedTask;
+        }   
         private long GetSpaceAvailability(string savePath)
         {
             string driveRoot = Path.GetPathRoot(savePath);
@@ -482,6 +511,7 @@ namespace ScreenShotAutoPlus
                 OnMouseDown(args);
                 OnMouseUp(args);
                 SendKeys.SendWait("{F8}");
+                SendKeys.SendWait("z");
                 buttonPressed = true;
             }
             catch (Exception f)
