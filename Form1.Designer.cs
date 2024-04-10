@@ -52,6 +52,7 @@
             this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
+            this.min_WaitB4_LBL = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -66,7 +67,7 @@
             // 
             // waitB4_TB
             // 
-            this.waitB4_TB.Location = new System.Drawing.Point(48, 74);
+            this.waitB4_TB.Location = new System.Drawing.Point(57, 62);
             this.waitB4_TB.Name = "waitB4_TB";
             this.waitB4_TB.Size = new System.Drawing.Size(100, 22);
             this.waitB4_TB.TabIndex = 14;
@@ -76,7 +77,7 @@
             // 
             // waitAfter_TB
             // 
-            this.waitAfter_TB.Location = new System.Drawing.Point(48, 183);
+            this.waitAfter_TB.Location = new System.Drawing.Point(48, 174);
             this.waitAfter_TB.Name = "waitAfter_TB";
             this.waitAfter_TB.Size = new System.Drawing.Size(100, 22);
             this.waitAfter_TB.TabIndex = 15;
@@ -85,7 +86,7 @@
             // 
             // colorCode_TB
             // 
-            this.colorCode_TB.Location = new System.Drawing.Point(48, 267);
+            this.colorCode_TB.Location = new System.Drawing.Point(12, 265);
             this.colorCode_TB.Name = "colorCode_TB";
             this.colorCode_TB.Size = new System.Drawing.Size(100, 22);
             this.colorCode_TB.TabIndex = 26;
@@ -224,6 +225,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
+            this.panel1.Controls.Add(this.min_WaitB4_LBL);
             this.panel1.Controls.Add(this.colorCode_TB);
             this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.screenshot_PB);
@@ -249,7 +251,7 @@
             // 
             // label1
             // 
-            this.label1.Location = new System.Drawing.Point(12, 208);
+            this.label1.Location = new System.Drawing.Point(13, 226);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(189, 36);
             this.label1.TabIndex = 25;
@@ -259,7 +261,7 @@
             // waitB4_LBL
             // 
             this.waitB4_LBL.AutoEllipsis = true;
-            this.waitB4_LBL.Location = new System.Drawing.Point(3, 15);
+            this.waitB4_LBL.Location = new System.Drawing.Point(3, 3);
             this.waitB4_LBL.Name = "waitB4_LBL";
             this.waitB4_LBL.Size = new System.Drawing.Size(221, 56);
             this.waitB4_LBL.TabIndex = 6;
@@ -274,6 +276,15 @@
             this.waitAfter_LBL.TabIndex = 7;
             this.waitAfter_LBL.Text = "Number of miliseconds for program to wait  after each screenshot";
             this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // min_WaitB4_LBL
+            // 
+            this.min_WaitB4_LBL.AutoSize = true;
+            this.min_WaitB4_LBL.Location = new System.Drawing.Point(54, 98);
+            this.min_WaitB4_LBL.Name = "min_WaitB4_LBL";
+            this.min_WaitB4_LBL.Size = new System.Drawing.Size(94, 16);
+            this.min_WaitB4_LBL.TabIndex = 27;
+            this.min_WaitB4_LBL.Text = "Minimum time: ";
             // 
             // Form1
             // 
@@ -293,7 +304,6 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "Form1";
             this.TransparencyKey = System.Drawing.Color.Silver;
-            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).EndInit();
             this.panel1.ResumeLayout(false);
@@ -326,6 +336,7 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label waitAfter_LBL;
+        private System.Windows.Forms.Label min_WaitB4_LBL;
     }
 }
 
