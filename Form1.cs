@@ -26,6 +26,8 @@ namespace ScreenShotAutoPlus
         private Size panel1_OS;
         private TaskCompletionSource<bool> pauseCompletionSource;
         Size theSize;
+        private int completedScreenshots;
+        private int totalScreenshots;
         public Form1()
         {
             InitializeComponent();
@@ -356,12 +358,12 @@ namespace ScreenShotAutoPlus
         }
         private async void Start_BTN_Click(object sender, EventArgs e)
         {
-            int totalScreenshots = filePath_LB.Items.Count;
+            totalScreenshots = filePath_LB.Items.Count;
             int waitB4 = int.Parse(waitB4_TB.Text);
             int waitAfter = int.Parse(waitAfter_TB.Text);
             int screenshotsLeft;
             string savePath = "";
-            int completedScreenshots =0;
+           
           
             if(OpenAndValidateSP(ref savePath) != null)
             {
@@ -588,5 +590,16 @@ namespace ScreenShotAutoPlus
             }
         }
 
+        private void Exit_BTN_Click(object sender, EventArgs e)
+        {
+            if(processStatus_LBL.Text == "paused" || completedScreenshots == totalScreenshots)
+            {
+                Application.Exit();
+            }
+            else
+            {
+                MessageBox.Show("Please either wait until all the screenshots have been taken or pause the process prior to exiting Screenshot Auto Plus. Thanks.", "Error", MessageBoxButtons.OK);
+            }
+        }
     }
 }
