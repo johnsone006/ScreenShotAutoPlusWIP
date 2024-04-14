@@ -34,11 +34,10 @@
             this.waitB4_TB = new System.Windows.Forms.TextBox();
             this.waitAfter_TB = new System.Windows.Forms.TextBox();
             this.colorCode_TB = new System.Windows.Forms.TextBox();
+            this.import_BTN = new System.Windows.Forms.Button();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
-            this.imageList2 = new System.Windows.Forms.ImageList(this.components);
             this.fileName_LB = new System.Windows.Forms.ListBox();
             this.filePath_LB = new System.Windows.Forms.ListBox();
-            this.import_BTN = new System.Windows.Forms.Button();
             this.Start_BTN = new System.Windows.Forms.Button();
             this.pauseAndPlay_BTN = new System.Windows.Forms.Button();
             this.processStatus_LBL = new System.Windows.Forms.Label();
@@ -52,7 +51,6 @@
             this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
-            this.min_WaitB4_LBL = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -67,31 +65,52 @@
             // 
             // waitB4_TB
             // 
+            this.waitB4_TB.AccessibleDescription = "Type in the number of miliseconds you want the program to wait prior to each scre" +
+    "enshot here.";
+            this.waitB4_TB.AccessibleName = "Milisecond wait before each screenshot text box.";
+            this.waitB4_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
             this.waitB4_TB.Location = new System.Drawing.Point(57, 62);
             this.waitB4_TB.Name = "waitB4_TB";
             this.waitB4_TB.Size = new System.Drawing.Size(100, 22);
-            this.waitB4_TB.TabIndex = 14;
+            this.waitB4_TB.TabIndex = 1;
             this.toolTip1.SetToolTip(this.waitB4_TB, "Type the number of miliseconds you want the program to wait prior to taking each " +
         "screenshot");
             this.waitB4_TB.WordWrap = false;
             // 
             // waitAfter_TB
             // 
-            this.waitAfter_TB.Location = new System.Drawing.Point(48, 174);
+            this.waitAfter_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
+            this.waitAfter_TB.Location = new System.Drawing.Point(57, 165);
             this.waitAfter_TB.Name = "waitAfter_TB";
             this.waitAfter_TB.Size = new System.Drawing.Size(100, 22);
-            this.waitAfter_TB.TabIndex = 15;
+            this.waitAfter_TB.TabIndex = 2;
             this.toolTip1.SetToolTip(this.waitAfter_TB, "Type the number of miliseconds you want the program to wait after taking each scr" +
         "eenshot");
             // 
             // colorCode_TB
             // 
-            this.colorCode_TB.Location = new System.Drawing.Point(12, 265);
+            this.colorCode_TB.AccessibleDescription = "Type in the hex color code for the viewport of nifskope here.";
+            this.colorCode_TB.AccessibleName = "Color code text box";
+            this.colorCode_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
+            this.colorCode_TB.Location = new System.Drawing.Point(57, 278);
             this.colorCode_TB.Name = "colorCode_TB";
             this.colorCode_TB.Size = new System.Drawing.Size(100, 22);
-            this.colorCode_TB.TabIndex = 26;
+            this.colorCode_TB.TabIndex = 3;
             this.toolTip1.SetToolTip(this.colorCode_TB, "Type  in hexadecimal color code for the background of the viewport in Nifskope he" +
         "re");
+            // 
+            // import_BTN
+            // 
+            this.import_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.import_BTN.Location = new System.Drawing.Point(11, 317);
+            this.import_BTN.Name = "import_BTN";
+            this.import_BTN.Size = new System.Drawing.Size(186, 23);
+            this.import_BTN.TabIndex = 4;
+            this.import_BTN.Text = "Import file names and paths";
+            this.toolTip1.SetToolTip(this.import_BTN, "This is the button you press to select the file folder that contains the files yo" +
+        "u want to screenshot.");
+            this.import_BTN.UseVisualStyleBackColor = true;
+            this.import_BTN.Click += new System.EventHandler(this.Import_BTN_Click);
             // 
             // imageList1
             // 
@@ -99,14 +118,12 @@
             this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
             this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
             // 
-            // imageList2
-            // 
-            this.imageList2.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
-            this.imageList2.ImageSize = new System.Drawing.Size(16, 16);
-            this.imageList2.TransparentColor = System.Drawing.Color.Transparent;
-            // 
             // fileName_LB
             // 
+            this.fileName_LB.AccessibleDescription = "This is the list box that will contain the list of file names of the files to be " +
+    "screenshotted.";
+            this.fileName_LB.AccessibleName = "List of file names";
+            this.fileName_LB.AccessibleRole = System.Windows.Forms.AccessibleRole.List;
             this.fileName_LB.FormattingEnabled = true;
             this.fileName_LB.ItemHeight = 16;
             this.fileName_LB.Location = new System.Drawing.Point(12, 418);
@@ -116,6 +133,10 @@
             // 
             // filePath_LB
             // 
+            this.filePath_LB.AccessibleDescription = "This is the list box that will contain all the file paths of files to be screensh" +
+    "otted.";
+            this.filePath_LB.AccessibleName = "List of file paths";
+            this.filePath_LB.AccessibleRole = System.Windows.Forms.AccessibleRole.List;
             this.filePath_LB.BackColor = System.Drawing.SystemColors.Window;
             this.filePath_LB.FormattingEnabled = true;
             this.filePath_LB.HorizontalScrollbar = true;
@@ -124,17 +145,6 @@
             this.filePath_LB.Name = "filePath_LB";
             this.filePath_LB.Size = new System.Drawing.Size(190, 36);
             this.filePath_LB.TabIndex = 17;
-            // 
-            // import_BTN
-            // 
-            this.import_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.import_BTN.Location = new System.Drawing.Point(11, 317);
-            this.import_BTN.Name = "import_BTN";
-            this.import_BTN.Size = new System.Drawing.Size(186, 23);
-            this.import_BTN.TabIndex = 18;
-            this.import_BTN.Text = "Import file names and paths";
-            this.import_BTN.UseVisualStyleBackColor = true;
-            this.import_BTN.Click += new System.EventHandler(this.Import_BTN_Click);
             // 
             // Start_BTN
             // 
@@ -194,16 +204,17 @@
             // 
             // CalculateTimeBTN
             // 
-            this.CalculateTimeBTN.Location = new System.Drawing.Point(48, 518);
+            this.CalculateTimeBTN.Location = new System.Drawing.Point(31, 518);
             this.CalculateTimeBTN.Name = "CalculateTimeBTN";
-            this.CalculateTimeBTN.Size = new System.Drawing.Size(109, 23);
+            this.CalculateTimeBTN.Size = new System.Drawing.Size(136, 23);
             this.CalculateTimeBTN.TabIndex = 22;
-            this.CalculateTimeBTN.Text = "CalculateTime";
+            this.CalculateTimeBTN.Text = "Calculation Time";
             this.CalculateTimeBTN.UseVisualStyleBackColor = true;
             this.CalculateTimeBTN.Click += new System.EventHandler(this.CalculateTimeBTN_Click);
             // 
             // screenshotFiles_LB
             // 
+            this.screenshotFiles_LB.AccessibleRole = System.Windows.Forms.AccessibleRole.List;
             this.screenshotFiles_LB.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.screenshotFiles_LB.FormattingEnabled = true;
             this.screenshotFiles_LB.HorizontalScrollbar = true;
@@ -215,6 +226,9 @@
             // 
             // screenshot_PB
             // 
+            this.screenshot_PB.AccessibleDescription = "This is a picture box that shows the screenshot of a file that you click in scree" +
+    "nshotFiles_LB";
+            this.screenshot_PB.AccessibleName = "Screenshot that was taken";
             this.screenshot_PB.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.screenshot_PB.Location = new System.Drawing.Point(10, 691);
             this.screenshot_PB.Name = "screenshot_PB";
@@ -225,7 +239,6 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.min_WaitB4_LBL);
             this.panel1.Controls.Add(this.colorCode_TB);
             this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.screenshot_PB);
@@ -277,15 +290,6 @@
             this.waitAfter_LBL.Text = "Number of miliseconds for program to wait  after each screenshot";
             this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // min_WaitB4_LBL
-            // 
-            this.min_WaitB4_LBL.AutoSize = true;
-            this.min_WaitB4_LBL.Location = new System.Drawing.Point(54, 98);
-            this.min_WaitB4_LBL.Name = "min_WaitB4_LBL";
-            this.min_WaitB4_LBL.Size = new System.Drawing.Size(94, 16);
-            this.min_WaitB4_LBL.TabIndex = 27;
-            this.min_WaitB4_LBL.Text = "Minimum time: ";
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -316,7 +320,6 @@
         private System.Windows.Forms.Panel topPanel;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.ImageList imageList1;
-        private System.Windows.Forms.ImageList imageList2;
         private System.Windows.Forms.TextBox waitB4_TB;
         private System.Windows.Forms.TextBox waitAfter_TB;
         private System.Windows.Forms.ListBox fileName_LB;
@@ -336,7 +339,6 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label waitAfter_LBL;
-        private System.Windows.Forms.Label min_WaitB4_LBL;
     }
 }
 
