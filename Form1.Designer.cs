@@ -47,10 +47,12 @@
             this.screenshotFiles_LB = new System.Windows.Forms.ListBox();
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.Exit_BTN = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
-            this.Exit_BTN = new System.Windows.Forms.Button();
+            this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
+            this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -197,9 +199,9 @@
             this.timeLeft_LBL.AutoSize = true;
             this.timeLeft_LBL.Location = new System.Drawing.Point(19, 816);
             this.timeLeft_LBL.Name = "timeLeft_LBL";
-            this.timeLeft_LBL.Size = new System.Drawing.Size(157, 16);
+            this.timeLeft_LBL.Size = new System.Drawing.Size(137, 16);
             this.timeLeft_LBL.TabIndex = 4;
-            this.timeLeft_LBL.Text = "Time left (in miliseconds):";
+            this.timeLeft_LBL.Text = "Time left (in seconds):";
             // 
             // CalculateTimeBTN
             // 
@@ -265,6 +267,16 @@
             this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
             // 
+            // Exit_BTN
+            // 
+            this.Exit_BTN.Location = new System.Drawing.Point(18, 880);
+            this.Exit_BTN.Name = "Exit_BTN";
+            this.Exit_BTN.Size = new System.Drawing.Size(139, 23);
+            this.Exit_BTN.TabIndex = 26;
+            this.Exit_BTN.Text = "Exit";
+            this.Exit_BTN.UseVisualStyleBackColor = true;
+            this.Exit_BTN.Click += new System.EventHandler(this.Exit_BTN_Click);
+            // 
             // label1
             // 
             this.label1.Location = new System.Drawing.Point(19, 176);
@@ -279,29 +291,27 @@
             this.waitB4_LBL.AutoEllipsis = true;
             this.waitB4_LBL.Location = new System.Drawing.Point(3, 3);
             this.waitB4_LBL.Name = "waitB4_LBL";
-            this.waitB4_LBL.Size = new System.Drawing.Size(221, 56);
+            this.waitB4_LBL.Size = new System.Drawing.Size(217, 56);
             this.waitB4_LBL.TabIndex = 6;
             this.waitB4_LBL.Text = "Number of miliseconds for program to wait prior to each screenshot";
             this.waitB4_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // waitAfter_LBL
             // 
-            this.waitAfter_LBL.Location = new System.Drawing.Point(3, 87);
+            this.waitAfter_LBL.Location = new System.Drawing.Point(19, 87);
             this.waitAfter_LBL.Name = "waitAfter_LBL";
-            this.waitAfter_LBL.Size = new System.Drawing.Size(213, 48);
+            this.waitAfter_LBL.Size = new System.Drawing.Size(173, 48);
             this.waitAfter_LBL.TabIndex = 7;
             this.waitAfter_LBL.Text = "Number of miliseconds for program to wait  after each screenshot";
             this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // Exit_BTN
+            // BackgroundWorker1
             // 
-            this.Exit_BTN.Location = new System.Drawing.Point(18, 880);
-            this.Exit_BTN.Name = "Exit_BTN";
-            this.Exit_BTN.Size = new System.Drawing.Size(139, 23);
-            this.Exit_BTN.TabIndex = 26;
-            this.Exit_BTN.Text = "Exit";
-            this.Exit_BTN.UseVisualStyleBackColor = true;
-            this.Exit_BTN.Click += new System.EventHandler(this.Exit_BTN_Click);
+            this.BackgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BackgroundWorker1_DoWork);
+            // 
+            // backgroundWorker2
+            // 
+            this.backgroundWorker2.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker2_DoWork);
             // 
             // Form1
             // 
@@ -352,6 +362,8 @@
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label waitAfter_LBL;
         private System.Windows.Forms.Button Exit_BTN;
+        private System.ComponentModel.BackgroundWorker BackgroundWorker1;
+        private System.ComponentModel.BackgroundWorker backgroundWorker2;
     }
 }
 
