@@ -37,7 +37,6 @@
             this.import_BTN = new System.Windows.Forms.Button();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.fileName_LB = new System.Windows.Forms.ListBox();
-            this.filePath_LB = new System.Windows.Forms.ListBox();
             this.Start_BTN = new System.Windows.Forms.Button();
             this.pauseAndPlay_BTN = new System.Windows.Forms.Button();
             this.processStatus_LBL = new System.Windows.Forms.Label();
@@ -53,6 +52,7 @@
             this.waitAfter_LBL = new System.Windows.Forms.Label();
             this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
+            this.completedScreenshots_LBL = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -133,21 +133,6 @@
             this.fileName_LB.Name = "fileName_LB";
             this.fileName_LB.Size = new System.Drawing.Size(190, 52);
             this.fileName_LB.TabIndex = 16;
-            // 
-            // filePath_LB
-            // 
-            this.filePath_LB.AccessibleDescription = "This is the list box that will contain all the file paths of files to be screensh" +
-    "otted.";
-            this.filePath_LB.AccessibleName = "List of file paths";
-            this.filePath_LB.AccessibleRole = System.Windows.Forms.AccessibleRole.List;
-            this.filePath_LB.BackColor = System.Drawing.SystemColors.Window;
-            this.filePath_LB.FormattingEnabled = true;
-            this.filePath_LB.HorizontalScrollbar = true;
-            this.filePath_LB.ItemHeight = 16;
-            this.filePath_LB.Location = new System.Drawing.Point(18, 308);
-            this.filePath_LB.Name = "filePath_LB";
-            this.filePath_LB.Size = new System.Drawing.Size(190, 36);
-            this.filePath_LB.TabIndex = 17;
             // 
             // Start_BTN
             // 
@@ -244,6 +229,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
+            this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
             this.panel1.Controls.Add(this.colorCode_TB);
             this.panel1.Controls.Add(this.label1);
@@ -258,7 +244,6 @@
             this.panel1.Controls.Add(this.Start_BTN);
             this.panel1.Controls.Add(this.waitAfter_LBL);
             this.panel1.Controls.Add(this.import_BTN);
-            this.panel1.Controls.Add(this.filePath_LB);
             this.panel1.Controls.Add(this.fileName_LB);
             this.panel1.Controls.Add(this.waitAfter_TB);
             this.panel1.Controls.Add(this.waitB4_TB);
@@ -269,7 +254,7 @@
             // 
             // Exit_BTN
             // 
-            this.Exit_BTN.Location = new System.Drawing.Point(18, 880);
+            this.Exit_BTN.Location = new System.Drawing.Point(22, 903);
             this.Exit_BTN.Name = "Exit_BTN";
             this.Exit_BTN.Size = new System.Drawing.Size(139, 23);
             this.Exit_BTN.TabIndex = 26;
@@ -313,6 +298,15 @@
             // 
             this.backgroundWorker2.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker2_DoWork);
             // 
+            // completedScreenshots_LBL
+            // 
+            this.completedScreenshots_LBL.AutoSize = true;
+            this.completedScreenshots_LBL.Location = new System.Drawing.Point(22, 872);
+            this.completedScreenshots_LBL.Name = "completedScreenshots_LBL";
+            this.completedScreenshots_LBL.Size = new System.Drawing.Size(152, 16);
+            this.completedScreenshots_LBL.TabIndex = 27;
+            this.completedScreenshots_LBL.Text = "Completed screenshots:";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -346,7 +340,6 @@
         private System.Windows.Forms.TextBox waitB4_TB;
         private System.Windows.Forms.TextBox waitAfter_TB;
         private System.Windows.Forms.ListBox fileName_LB;
-        private System.Windows.Forms.ListBox filePath_LB;
         private System.Windows.Forms.Button import_BTN;
         private System.Windows.Forms.Button Start_BTN;
         private System.Windows.Forms.Button pauseAndPlay_BTN;
@@ -364,6 +357,7 @@
         private System.Windows.Forms.Button Exit_BTN;
         private System.ComponentModel.BackgroundWorker BackgroundWorker1;
         private System.ComponentModel.BackgroundWorker backgroundWorker2;
+        private System.Windows.Forms.Label completedScreenshots_LBL;
     }
 }
 
