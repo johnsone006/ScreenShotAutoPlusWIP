@@ -11,7 +11,7 @@ namespace ScreenShotAutoPlus
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
-        [STAThreadAttribute]
+        [STAThread]
         static void Main()
         {
             Application.EnableVisualStyles();

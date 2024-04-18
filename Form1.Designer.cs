@@ -35,8 +35,6 @@
             this.waitAfter_TB = new System.Windows.Forms.TextBox();
             this.colorCode_TB = new System.Windows.Forms.TextBox();
             this.import_BTN = new System.Windows.Forms.Button();
-            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
-            this.fileName_LB = new System.Windows.Forms.ListBox();
             this.Start_BTN = new System.Windows.Forms.Button();
             this.pauseAndPlay_BTN = new System.Windows.Forms.Button();
             this.processStatus_LBL = new System.Windows.Forms.Label();
@@ -46,13 +44,15 @@
             this.screenshotFiles_LB = new System.Windows.Forms.ListBox();
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.completedScreenshots_LBL = new System.Windows.Forms.Label();
             this.Exit_BTN = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
             this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
-            this.completedScreenshots_LBL = new System.Windows.Forms.Label();
+            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
+            this.NifskopeBTN_LB = new System.Windows.Forms.ListBox();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -105,7 +105,7 @@
             // 
             this.import_BTN.AccessibleRole = System.Windows.Forms.AccessibleRole.PushButton;
             this.import_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.import_BTN.Location = new System.Drawing.Point(22, 267);
+            this.import_BTN.Location = new System.Drawing.Point(18, 254);
             this.import_BTN.Name = "import_BTN";
             this.import_BTN.Size = new System.Drawing.Size(186, 23);
             this.import_BTN.TabIndex = 4;
@@ -114,25 +114,6 @@
         "u want to screenshot.");
             this.import_BTN.UseVisualStyleBackColor = true;
             this.import_BTN.Click += new System.EventHandler(this.Import_BTN_Click);
-            // 
-            // imageList1
-            // 
-            this.imageList1.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
-            this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
-            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
-            // 
-            // fileName_LB
-            // 
-            this.fileName_LB.AccessibleDescription = "This is the list box that will contain the list of file names of the files to be " +
-    "screenshotted.";
-            this.fileName_LB.AccessibleName = "List of file names";
-            this.fileName_LB.AccessibleRole = System.Windows.Forms.AccessibleRole.List;
-            this.fileName_LB.FormattingEnabled = true;
-            this.fileName_LB.ItemHeight = 16;
-            this.fileName_LB.Location = new System.Drawing.Point(18, 364);
-            this.fileName_LB.Name = "fileName_LB";
-            this.fileName_LB.Size = new System.Drawing.Size(190, 52);
-            this.fileName_LB.TabIndex = 16;
             // 
             // Start_BTN
             // 
@@ -191,7 +172,7 @@
             // CalculateTimeBTN
             // 
             this.CalculateTimeBTN.AccessibleRole = System.Windows.Forms.AccessibleRole.PushButton;
-            this.CalculateTimeBTN.Location = new System.Drawing.Point(40, 422);
+            this.CalculateTimeBTN.Location = new System.Drawing.Point(38, 406);
             this.CalculateTimeBTN.Name = "CalculateTimeBTN";
             this.CalculateTimeBTN.Size = new System.Drawing.Size(136, 23);
             this.CalculateTimeBTN.TabIndex = 22;
@@ -222,13 +203,14 @@
             this.screenshot_PB.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
             this.screenshot_PB.Location = new System.Drawing.Point(18, 618);
             this.screenshot_PB.Name = "screenshot_PB";
-            this.screenshot_PB.Size = new System.Drawing.Size(174, 156);
+            this.screenshot_PB.Size = new System.Drawing.Size(178, 152);
             this.screenshot_PB.TabIndex = 24;
             this.screenshot_PB.TabStop = false;
             // 
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
+            this.panel1.Controls.Add(this.NifskopeBTN_LB);
             this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
             this.panel1.Controls.Add(this.colorCode_TB);
@@ -244,13 +226,21 @@
             this.panel1.Controls.Add(this.Start_BTN);
             this.panel1.Controls.Add(this.waitAfter_LBL);
             this.panel1.Controls.Add(this.import_BTN);
-            this.panel1.Controls.Add(this.fileName_LB);
             this.panel1.Controls.Add(this.waitAfter_TB);
             this.panel1.Controls.Add(this.waitB4_TB);
             this.panel1.Location = new System.Drawing.Point(0, 91);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
+            // 
+            // completedScreenshots_LBL
+            // 
+            this.completedScreenshots_LBL.AutoSize = true;
+            this.completedScreenshots_LBL.Location = new System.Drawing.Point(22, 872);
+            this.completedScreenshots_LBL.Name = "completedScreenshots_LBL";
+            this.completedScreenshots_LBL.Size = new System.Drawing.Size(152, 16);
+            this.completedScreenshots_LBL.TabIndex = 27;
+            this.completedScreenshots_LBL.Text = "Completed screenshots:";
             // 
             // Exit_BTN
             // 
@@ -298,14 +288,21 @@
             // 
             this.backgroundWorker2.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker2_DoWork);
             // 
-            // completedScreenshots_LBL
+            // imageList1
             // 
-            this.completedScreenshots_LBL.AutoSize = true;
-            this.completedScreenshots_LBL.Location = new System.Drawing.Point(22, 872);
-            this.completedScreenshots_LBL.Name = "completedScreenshots_LBL";
-            this.completedScreenshots_LBL.Size = new System.Drawing.Size(152, 16);
-            this.completedScreenshots_LBL.TabIndex = 27;
-            this.completedScreenshots_LBL.Text = "Completed screenshots:";
+            this.imageList1.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
+            this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
+            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
+            // 
+            // NifskopeBTN_LB
+            // 
+            this.NifskopeBTN_LB.FormattingEnabled = true;
+            this.NifskopeBTN_LB.ItemHeight = 16;
+            this.NifskopeBTN_LB.Location = new System.Drawing.Point(18, 283);
+            this.NifskopeBTN_LB.MultiColumn = true;
+            this.NifskopeBTN_LB.Name = "NifskopeBTN_LB";
+            this.NifskopeBTN_LB.Size = new System.Drawing.Size(186, 84);
+            this.NifskopeBTN_LB.TabIndex = 30;
             // 
             // Form1
             // 
@@ -336,10 +333,8 @@
         #endregion
         private System.Windows.Forms.Panel topPanel;
         private System.Windows.Forms.ToolTip toolTip1;
-        private System.Windows.Forms.ImageList imageList1;
         private System.Windows.Forms.TextBox waitB4_TB;
         private System.Windows.Forms.TextBox waitAfter_TB;
-        private System.Windows.Forms.ListBox fileName_LB;
         private System.Windows.Forms.Button import_BTN;
         private System.Windows.Forms.Button Start_BTN;
         private System.Windows.Forms.Button pauseAndPlay_BTN;
@@ -358,6 +353,8 @@
         private System.ComponentModel.BackgroundWorker BackgroundWorker1;
         private System.ComponentModel.BackgroundWorker backgroundWorker2;
         private System.Windows.Forms.Label completedScreenshots_LBL;
+        private System.Windows.Forms.ImageList imageList1;
+        private System.Windows.Forms.ListBox NifskopeBTN_LB;
     }
 }
 
