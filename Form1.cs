@@ -19,6 +19,7 @@ using System.Reflection;
 using System.Windows.Forms.VisualStyles;
 using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.CompilerServices;
+using System.Runtime.Remoting.Channels;
 namespace ScreenShotAutoPlus
 {
     public partial class Form1 : Form
@@ -33,27 +34,25 @@ namespace ScreenShotAutoPlus
         private bool sufficientSpace;
         private string filePath;
         private readonly long[] info = new long[2];
+        private readonly IUIAutomation processInterface;
 
         private readonly List<string> filePaths = new List<string>();
         private readonly List<string> fileNames = new List<string>();
-        public const int UIA_IsInvokePatternAvailablePropertyId = 30031;
-        public const int UIA_ClickablePointPropertyId = 30014;
-        public const int UIA_ControlTypePropertyId = 30003;
-        public const int UIA_NamePropertyId = 30005;
-        public const int UIA_IsKeyboardFocusablePropertyId = 30009;
-        public const int UIA_SizePropertyId = 30167;
-        public const int UIA_CenterPointPropertyId = 30165;
-        public const int UIA_BoundingRectanglePropertyId = 30001;
+
         public Form1()
         {
             InitializeComponent();
+
             this.KeyPreview = true;
             this.TopMost = true;
             pauseCompletionSource = new TaskCompletionSource<bool>();
             pauseCompletionSource.SetResult(false);
             BackgroundWorker1.WorkerReportsProgress = false;
             BackgroundWorker1.WorkerSupportsCancellation = false;
+            processInterface = new CUIAutomation8();
         }
+
+
         private void Form1_Load(object sender, EventArgs e)
         {
             //I have officially gotten tired of typing in my values every time I hit debug. So the next statement will only remain here until I get this program working correctly.
@@ -189,76 +188,76 @@ namespace ScreenShotAutoPlus
                     $"Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
             }
         }
-        private  void CalculateTimeBTN_Click(object sender, EventArgs e)
+        private void CalculateTimeBTN_Click(object sender, EventArgs e)
         {
             string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
+
+            Point viewPortLocation = new Point();
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
                 FileName = fileInfo,
                 WindowStyle = ProcessWindowStyle.Maximized,
             };
+            
+
             using (Process theProcess = new Process { StartInfo = startInfo })
             {
-
-                List<string> buttonNames = new List<string>();
-                Point viewPortLocation = new Point();
+                //I'm using local function thingie because otherwise nifskope won't open properly before the IUIAutomationElement tries to get instantiated. It'll throw an exception.
                 theProcess.Start();
-                theProcess.WaitForInputIdle(20000);
-                IntPtr nifskopeHandle = theProcess.MainWindowHandle;
-                    ControlsMethod(theProcess, nifskopeHandle, ref buttonNames, out viewPortLocation);
-                    // now that we have the button list, publish it to the listox.
-                    NifskopeBTN_LB.DataSource = buttonNames;
-                }
-            
-            
-            MessageBox.Show("Stuff has been calculated.");
-        }
-        static bool WaitForMainWindow(IntPtr nifskopeHandle, TimeSpan timeOut)
-        {
-            DateTime startTime = DateTime.Now;
-            while(DateTime.Now - startTime < timeOut)
-            {
-                if (nifskopeHandle != IntPtr.Zero)
-                    return true;
+                void openAction(bool open)
+                {
+                    while (theProcess.MainWindowHandle == IntPtr.Zero)
+                    {
+                        theProcess.WaitForInputIdle();
+                    }
 
+                }
+                bool isOpen = false;
+                openAction(isOpen);
+                IntPtr nifskopeHandle = theProcess.MainWindowHandle;
+                List<Point> buttonCenterPoints = new List<Point>();
+                ControlsMethod(theProcess, nifskopeHandle, ref buttonCenterPoints);
+                nifskopeBTNsCenter_LB.DataSource = buttonCenterPoints;
+                
             }
-            return false;
+            MessageBox.Show("Stuff has been calculated.");
+
         }
-        private void ControlsMethod(Process theProcess, IntPtr nifskopeHandle, ref List<string> buttonNames, out Point viewPortLocation)
+        private void ControlsMethod(Process theProcess, IntPtr nifskopeHandle, ref List<Point> buttonCenterPoints)
         {
-            viewPortLocation = new Point();
-            tagRECT viewportRECT = new tagRECT(); ;
             try
             {
-                
-                IUIAutomation uiAutomation = new CUIAutomation8();
-                IUIAutomationElement nifskope = uiAutomation.ElementFromHandle(nifskopeHandle);
-
-               //Create an array of buttons.
-                var controlTypeCondition = uiAutomation.CreatePropertyCondition(30003, 50000); //this is a condition that checks that the element in question is a button.
-                var invokePatternCondition = uiAutomation.CreatePropertyCondition(30031, true); //this is a condition that checks that the element in question is invokeable.
-                var andCondition = uiAutomation.CreateAndCondition(invokePatternCondition, controlTypeCondition);
-
-                IUIAutomationElementArray buttons = nifskope.FindAll(TreeScope.TreeScope_Descendants, andCondition);
+                IUIAutomationElement nifskope = processInterface.ElementFromHandle(nifskopeHandle);
+                int windowState = nifskope.GetCurrentPropertyValue(30076);
+                while(windowState != 2)
+                {
+                    processStatus_LBL.Text = "Preparing to get buttons...";
+                }
+                processStatus_LBL.Text = "Getting buttons...";
+                //Create an array of buttons.
+                var controlTypeCondition = processInterface.CreatePropertyCondition(30003, 50000); //this is a condition that checks that the element in question is a button.
+                IUIAutomationElementArray buttons = nifskope.FindAll(TreeScope.TreeScope_Descendants, controlTypeCondition);
                 for (int i = 0; i < buttons.Length; i++)
                 {
                     //get names of buttons. 
                     IUIAutomationElement button = buttons.GetElement(i);
                     string name = button.CurrentName;
-                    buttonNames.Add(name);
+                    if (name == null || name == string.Empty)
+                        name = "Unspecified";
+                    nifskopeBTNsNames_LB.Items.Add(name);
+                    tagRECT buttonRect = button.GetCurrentPropertyValue(UIA_PropertyIds.UIA_BoundingRectanglePropertyId);
+                    Rectangle theRectangle = new Rectangle(buttonRect.left, buttonRect.right, (buttonRect.right - buttonRect.left), (buttonRect.bottom - buttonRect.top));
+                    Point centerPoint = new Point(buttonRect.left, buttonRect.top);
+                    
 
                 }
-                // now find the viewport from the handle that I got using Spy++. 
-                IntPtr viewPortHandle = (IntPtr)0x0052034C;
 
-                
-                
             }
             catch (Exception f)
             {
                 MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source} \n+ StackTrace: {f.StackTrace} \n+ TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
             }
-            viewPortLocation = new Point(viewportRECT.left, viewportRECT.top);
+
         }
         private void Start_BTN_Click(object sender, EventArgs e)
         {

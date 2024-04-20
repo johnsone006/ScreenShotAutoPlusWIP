@@ -52,7 +52,8 @@
             this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
-            this.NifskopeBTN_LB = new System.Windows.Forms.ListBox();
+            this.nifskopeBTNsNames_LB = new System.Windows.Forms.ListBox();
+            this.nifskopeBTNsCenter_LB = new System.Windows.Forms.ListBox();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -94,7 +95,7 @@
             this.colorCode_TB.AccessibleDescription = "Type in the hex color code for the viewport of nifskope here.";
             this.colorCode_TB.AccessibleName = "Color code text box";
             this.colorCode_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
-            this.colorCode_TB.Location = new System.Drawing.Point(57, 226);
+            this.colorCode_TB.Location = new System.Drawing.Point(57, 202);
             this.colorCode_TB.Name = "colorCode_TB";
             this.colorCode_TB.Size = new System.Drawing.Size(100, 22);
             this.colorCode_TB.TabIndex = 3;
@@ -105,7 +106,7 @@
             // 
             this.import_BTN.AccessibleRole = System.Windows.Forms.AccessibleRole.PushButton;
             this.import_BTN.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.import_BTN.Location = new System.Drawing.Point(18, 254);
+            this.import_BTN.Location = new System.Drawing.Point(22, 230);
             this.import_BTN.Name = "import_BTN";
             this.import_BTN.Size = new System.Drawing.Size(186, 23);
             this.import_BTN.TabIndex = 4;
@@ -210,7 +211,8 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.NifskopeBTN_LB);
+            this.panel1.Controls.Add(this.nifskopeBTNsCenter_LB);
+            this.panel1.Controls.Add(this.nifskopeBTNsNames_LB);
             this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
             this.panel1.Controls.Add(this.colorCode_TB);
@@ -254,7 +256,7 @@
             // 
             // label1
             // 
-            this.label1.Location = new System.Drawing.Point(19, 176);
+            this.label1.Location = new System.Drawing.Point(15, 163);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(189, 36);
             this.label1.TabIndex = 25;
@@ -294,15 +296,23 @@
             this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
             this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
             // 
-            // NifskopeBTN_LB
+            // nifskopeBTNsNames_LB
             // 
-            this.NifskopeBTN_LB.FormattingEnabled = true;
-            this.NifskopeBTN_LB.ItemHeight = 16;
-            this.NifskopeBTN_LB.Location = new System.Drawing.Point(18, 283);
-            this.NifskopeBTN_LB.MultiColumn = true;
-            this.NifskopeBTN_LB.Name = "NifskopeBTN_LB";
-            this.NifskopeBTN_LB.Size = new System.Drawing.Size(186, 84);
-            this.NifskopeBTN_LB.TabIndex = 30;
+            this.nifskopeBTNsNames_LB.FormattingEnabled = true;
+            this.nifskopeBTNsNames_LB.ItemHeight = 16;
+            this.nifskopeBTNsNames_LB.Location = new System.Drawing.Point(25, 259);
+            this.nifskopeBTNsNames_LB.Name = "nifskopeBTNsNames_LB";
+            this.nifskopeBTNsNames_LB.Size = new System.Drawing.Size(179, 36);
+            this.nifskopeBTNsNames_LB.TabIndex = 28;
+            // 
+            // nifskopeBTNsCenter_LB
+            // 
+            this.nifskopeBTNsCenter_LB.FormattingEnabled = true;
+            this.nifskopeBTNsCenter_LB.ItemHeight = 16;
+            this.nifskopeBTNsCenter_LB.Location = new System.Drawing.Point(25, 301);
+            this.nifskopeBTNsCenter_LB.Name = "nifskopeBTNsCenter_LB";
+            this.nifskopeBTNsCenter_LB.Size = new System.Drawing.Size(183, 52);
+            this.nifskopeBTNsCenter_LB.TabIndex = 23;
             // 
             // Form1
             // 
@@ -354,7 +364,8 @@
         private System.ComponentModel.BackgroundWorker backgroundWorker2;
         private System.Windows.Forms.Label completedScreenshots_LBL;
         private System.Windows.Forms.ImageList imageList1;
-        private System.Windows.Forms.ListBox NifskopeBTN_LB;
+        private System.Windows.Forms.ListBox nifskopeBTNsCenter_LB;
+        private System.Windows.Forms.ListBox nifskopeBTNsNames_LB;
     }
 }
 
