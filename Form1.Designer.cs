@@ -40,7 +40,6 @@
             this.processStatus_LBL = new System.Windows.Forms.Label();
             this.screenshotNumber_LBL = new System.Windows.Forms.Label();
             this.timeLeft_LBL = new System.Windows.Forms.Label();
-            this.CalculateTimeBTN = new System.Windows.Forms.Button();
             this.screenshotFiles_LB = new System.Windows.Forms.ListBox();
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
@@ -49,11 +48,8 @@
             this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
-            this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
-            this.backgroundWorker2 = new System.ComponentModel.BackgroundWorker();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
-            this.nifskopeBTNsNames_LB = new System.Windows.Forms.ListBox();
-            this.nifskopeBTNsCenter_LB = new System.Windows.Forms.ListBox();
+            this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             ((System.ComponentModel.ISupportInitialize)(this.screenshot_PB)).BeginInit();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
@@ -170,17 +166,6 @@
             this.timeLeft_LBL.TabIndex = 4;
             this.timeLeft_LBL.Text = "Time left (in seconds):";
             // 
-            // CalculateTimeBTN
-            // 
-            this.CalculateTimeBTN.AccessibleRole = System.Windows.Forms.AccessibleRole.PushButton;
-            this.CalculateTimeBTN.Location = new System.Drawing.Point(38, 406);
-            this.CalculateTimeBTN.Name = "CalculateTimeBTN";
-            this.CalculateTimeBTN.Size = new System.Drawing.Size(136, 23);
-            this.CalculateTimeBTN.TabIndex = 22;
-            this.CalculateTimeBTN.Text = "Calculation Time";
-            this.CalculateTimeBTN.UseVisualStyleBackColor = true;
-            this.CalculateTimeBTN.Click += new System.EventHandler(this.CalculateTimeBTN_Click);
-            // 
             // screenshotFiles_LB
             // 
             this.screenshotFiles_LB.AccessibleDescription = "Click an item on this list to populate the picturebox with a preview of that scre" +
@@ -211,15 +196,12 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.nifskopeBTNsCenter_LB);
-            this.panel1.Controls.Add(this.nifskopeBTNsNames_LB);
             this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
             this.panel1.Controls.Add(this.colorCode_TB);
             this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.screenshot_PB);
             this.panel1.Controls.Add(this.screenshotFiles_LB);
-            this.panel1.Controls.Add(this.CalculateTimeBTN);
             this.panel1.Controls.Add(this.timeLeft_LBL);
             this.panel1.Controls.Add(this.waitB4_LBL);
             this.panel1.Controls.Add(this.screenshotNumber_LBL);
@@ -282,37 +264,15 @@
             this.waitAfter_LBL.Text = "Number of miliseconds for program to wait  after each screenshot";
             this.waitAfter_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // BackgroundWorker1
-            // 
-            this.BackgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BackgroundWorker1_DoWork);
-            // 
-            // backgroundWorker2
-            // 
-            this.backgroundWorker2.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker2_DoWork);
-            // 
             // imageList1
             // 
             this.imageList1.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
             this.imageList1.ImageSize = new System.Drawing.Size(16, 16);
             this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
             // 
-            // nifskopeBTNsNames_LB
+            // BackgroundWorker1
             // 
-            this.nifskopeBTNsNames_LB.FormattingEnabled = true;
-            this.nifskopeBTNsNames_LB.ItemHeight = 16;
-            this.nifskopeBTNsNames_LB.Location = new System.Drawing.Point(25, 259);
-            this.nifskopeBTNsNames_LB.Name = "nifskopeBTNsNames_LB";
-            this.nifskopeBTNsNames_LB.Size = new System.Drawing.Size(179, 36);
-            this.nifskopeBTNsNames_LB.TabIndex = 28;
-            // 
-            // nifskopeBTNsCenter_LB
-            // 
-            this.nifskopeBTNsCenter_LB.FormattingEnabled = true;
-            this.nifskopeBTNsCenter_LB.ItemHeight = 16;
-            this.nifskopeBTNsCenter_LB.Location = new System.Drawing.Point(25, 301);
-            this.nifskopeBTNsCenter_LB.Name = "nifskopeBTNsCenter_LB";
-            this.nifskopeBTNsCenter_LB.Size = new System.Drawing.Size(183, 52);
-            this.nifskopeBTNsCenter_LB.TabIndex = 23;
+            this.BackgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BackgroundWorker1_DoWork);
             // 
             // Form1
             // 
@@ -351,7 +311,6 @@
         private System.Windows.Forms.Label processStatus_LBL;
         private System.Windows.Forms.Label screenshotNumber_LBL;
         private System.Windows.Forms.Label timeLeft_LBL;
-        private System.Windows.Forms.Button CalculateTimeBTN;
         private System.Windows.Forms.ListBox screenshotFiles_LB;
         private System.Windows.Forms.PictureBox screenshot_PB;
         private System.Windows.Forms.Panel panel1;
@@ -360,12 +319,9 @@
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label waitAfter_LBL;
         private System.Windows.Forms.Button Exit_BTN;
-        private System.ComponentModel.BackgroundWorker BackgroundWorker1;
-        private System.ComponentModel.BackgroundWorker backgroundWorker2;
         private System.Windows.Forms.Label completedScreenshots_LBL;
         private System.Windows.Forms.ImageList imageList1;
-        private System.Windows.Forms.ListBox nifskopeBTNsCenter_LB;
-        private System.Windows.Forms.ListBox nifskopeBTNsNames_LB;
+        private System.ComponentModel.BackgroundWorker BackgroundWorker1;
     }
 }
 
