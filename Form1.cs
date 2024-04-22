@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using UIAutomationClient;
 using System.ComponentModel;
 using System.Windows.Forms.VisualStyles;
+using System.Runtime.InteropServices;
 
 namespace ScreenShotAutoPlus
 {
@@ -19,18 +20,14 @@ namespace ScreenShotAutoPlus
         public Form1()
         {
             InitializeComponent();
-
             this.TopMost = true;
             BackgroundWorker1.WorkerReportsProgress = false;
             BackgroundWorker1.WorkerSupportsCancellation = false;
-
         }
         TaskCompletionSource<bool> pauseCompletionSource = new TaskCompletionSource<bool>();
-        private int completedScreenshots;
         bool buttonPress;
         private bool isPaused;
-        int totalScreenshots;
-
+        string savePath;
         private void Form1_Load(object sender, EventArgs e)
         {
             //I have officially gotten tired of typing in my values every time I hit debug. So the next statement will only remain here until I get this program working correctly.
@@ -40,11 +37,10 @@ namespace ScreenShotAutoPlus
             this.Size = formSize;
             this.Location = new Point(0, 0);
         }
-
-        private string OpenFilesValidated(ref string filePath,  List<string> fileNames, List<string> filePaths)
+        private string OpenFilesValidated(int totalScreenshots, List<string> fileNames, List<string> filePaths, ref string filePath)
         {
             //We are going to have to call this method twice, since one of the methods that needs it is the import method and the other one is the background worker do work
-            //and we shouldn't use anything from the UIAutomationClient namespace on a ui thread.
+            //and we shouldn't use anything from the UIAutomationClient namespace on the Ui thread.
             fileNames = new List<string>();
             filePaths = new List<string>();
 
@@ -55,7 +51,7 @@ namespace ScreenShotAutoPlus
                 List<string> localFilePaths = new List<string>();
                 this.Invoke((MethodInvoker)(() =>
                 {
-                    
+
                     using (FolderBrowserDialog fBD = new FolderBrowserDialog())
                     {
                         fBD.Description = "Please select the folder that contains all the files you wish to screenshot.";
@@ -70,21 +66,19 @@ namespace ScreenShotAutoPlus
                             localFilePath = null;
                         }
                     }
-                    if(localFilePath != string.Empty)
+                    if (localFilePath != string.Empty)
                     {
                         DirectoryInfo di = new DirectoryInfo(localFilePath);
-                        foreach(var file in di.GetFiles())
+                        foreach (var file in di.GetFiles())
                         {
                             localFileNames.Add(file.Name);
                             localFilePaths.Add(file.FullName);
                         }
                     }
-                    
-
                 }));
-                localFileNames = fileNames;
-                localFilePaths = filePaths;
-                localFilePath = filePath;
+                fileNames = localFileNames;
+                filePaths = localFilePaths;
+                filePath = localFilePath;
             }
             else
             {
@@ -120,19 +114,45 @@ namespace ScreenShotAutoPlus
                     filePaths.Add(file.FullName);
                     fileNames.Add(file.Name);
                 }
-            
+
             }
+            totalScreenshots = filePaths.Count;
             return filePath;
         }
-        private string ValidateSavePath(string savePath)
+        private string ValidateSavePath(ref string savePath)
         {
             if (this.InvokeRequired)
             {
                 string localSavePath = string.Empty;
                 this.Invoke((MethodInvoker)(() =>
                 {
-                    
 
+                    try
+                    {
+                        //Get save path.
+                        using (FolderBrowserDialog fBD2 = new FolderBrowserDialog())
+                        {
+
+                            fBD2.Description = "Select a folder to save the screenshots to.";
+                            fBD2.ShowNewFolderButton = false;
+                            DialogResult result2 = fBD2.ShowDialog();
+                            if (result2 == DialogResult.OK && !string.IsNullOrEmpty(fBD2.SelectedPath))
+                            {
+                                localSavePath = fBD2.SelectedPath;
+
+                            }
+                            else
+                            {
+                                localSavePath = null;
+                            }
+                        }
+                    }
+                    catch (Exception f)
+                    {
+                        MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
+                       $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
+                       $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                    }
                 }));
                 savePath = localSavePath;
             }
@@ -150,13 +170,11 @@ namespace ScreenShotAutoPlus
                         if (result2 == DialogResult.OK && !string.IsNullOrEmpty(fBD2.SelectedPath))
                         {
                             savePath = fBD2.SelectedPath;
-
                         }
                         else
                         {
                             savePath = null;
                         }
-
                     }
                 }
                 catch (Exception f)
@@ -168,44 +186,59 @@ namespace ScreenShotAutoPlus
             }
             return savePath;
         }
-        private bool ValidateNumbers(string hexString, int waitAfter, int waitB4, int bytesPerPixel)
+        private bool ValidateNumbers(ref string hexString, ref int waitAfter, ref int waitB4, ref int bytesPerPixel)
         {
-            if (this.InvokeRequired)
+            bool localValid = true;
+            if (InvokeRequired)
             {
-                
-               this.Invoke((MethodInvoker)(() => ValidateNumbers(hexString, waitAfter,waitB4, bytesPerPixel)));    
-            }
-            if (string.IsNullOrEmpty(colorCode_TB.Text) || colorCode_TB.TextLength != 7)
-            {
-                MessageBox.Show("Please enter in a valid hex color code for the background of the viewport in NifSkope.");
-                return false;
-            }
-            hexString = colorCode_TB.Text;
-            for (int i = 1; i < hexString.Length; i++)
-            {
-                char c = colorCode_TB.Text[i];
-                bool isHexDigit = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c <= 'a' && c <= 'f');
-                if (isHexDigit == false)
+                string localHexString = null;
+                int localWaitAfter = 0;
+                int localWaitB4 = 0;
+                int localBytesPerPixel = 0;
+
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    if (string.IsNullOrEmpty(colorCode_TB.Text) || colorCode_TB.TextLength != 7)
+                    {
+                        MessageBox.Show("Please enter in a valid hex color code for the background of the viewport in NifSkope.");
+                        localValid = false;
+                    }
+                    try
+                    {
+                        Color color = ColorTranslator.FromHtml(colorCode_TB.Text);
+                        localHexString = colorCode_TB.Text;
+                    }
+                    catch
+                    {
+                        localValid = false;
+                    }
+                    if (int.TryParse(waitAfter_TB.Text, out int waitA) == true && int.TryParse(waitB4_TB.Text, out int waitB) == true)
+                    {
+                        if (waitA >= 0 && waitB >= 0)
+                        {
+                            waitA = localWaitAfter;
+                            waitB = localWaitB4;
+                        }
+                    }
+                    else
+                    {
+                        localValid = false;
+                    }
+
+                    //Get bits per pixel.
+                    int localBitsPerPixel = Screen.FromControl(this).BitsPerPixel;
+                    localBytesPerPixel = localBitsPerPixel / 8;
+
+                }));
+                if (localValid == false)
                 {
                     return false;
                 }
+                bytesPerPixel = localBytesPerPixel;
+                hexString = localHexString;
+                localWaitAfter = waitAfter;
+                localWaitB4 = waitB4;
             }
-            if (int.TryParse(waitAfter_TB.Text, out int waitA) == true && int.TryParse(waitB4_TB.Text, out int waitB) == true)
-            {
-                if (waitA >= 0 && waitB >= 0)
-                {
-                    waitA = waitAfter;
-                    waitB = waitB4;
-                }
-            }
-            else
-            {
-                return false;
-            }
-            //Get bits per pixel.
-            int bitsPerPixel = Screen.FromControl(this).BitsPerPixel;
-            bytesPerPixel = bitsPerPixel / 8;
-
             return true;
         }
         private void Import_BTN_Click(object sender, EventArgs e)
@@ -213,15 +246,15 @@ namespace ScreenShotAutoPlus
             string filePath = string.Empty;
             List<string> fileNames = null;
             List<string> filePaths = null;
-
-            if (OpenFilesValidated(ref filePath, fileNames, filePaths) != null)
+            int totalScreenshots = 0;
+            if (OpenFilesValidated(totalScreenshots, fileNames, filePaths, ref filePath) != null)
             {
                 DialogResult answer = MessageBox.Show("Do you plan to let the program press the load view button prior to each screenshot automatically?", "Question", MessageBoxButtons.YesNo);
-                if(answer == DialogResult.Yes)
+                if (answer == DialogResult.Yes)
                 {
                     buttonPress = true;
                 }
-                else if(answer == DialogResult.No)
+                else if (answer == DialogResult.No)
                 {
                     buttonPress = false;
                 }
@@ -263,36 +296,28 @@ namespace ScreenShotAutoPlus
             }
             totalScreenshots = screenshotFiles_LB.Items.Count;
         }
-      
-
         private void Start_BTN_Click(object sender, EventArgs e)
         {
-
             if (BackgroundWorker1.IsBusy != true)
             {
 
                 BackgroundWorker1.RunWorkerAsync();
             }
-
         }
-
-        private void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        //I had no choice but to make the background worker async. It kept being faster than nifskope!
+        private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-      
             string filePath = null;
-            string savePath = null;
             string hexString = null;
-            long[] info = new long[2];
-            int waitB4 = int.Parse(waitB4_TB.Text);
-            int waitAfter = int.Parse(waitAfter_TB.Text);
+            int waitB4 = 0;
+            int waitAfter = 0;
             int bytesPerPixel = 0;
             List<string> fileNames = new List<string>();
             List<string> filePaths = new List<String>();
-            //So the garbage collector will collect fileNames after the if loop is done.
-
-            if (OpenFilesValidated(ref filePath, fileNames, filePaths) != null)
+            int totalScreenshots = 0;
+            if (OpenFilesValidated(totalScreenshots, fileNames, filePaths, ref filePath) != null)
             {
-                if(ValidateNumbers(hexString,waitAfter, waitB4, bytesPerPixel) == true && ValidateSavePath(savePath) != null)
+                if (ValidateNumbers(ref hexString, ref waitAfter, ref waitB4, ref bytesPerPixel) == true && ValidateSavePath(ref savePath) != null)
                 {
                     Size theSize = new Size();
                     bool sufficientSpace = false;
@@ -308,122 +333,228 @@ namespace ScreenShotAutoPlus
                         nifskopeProcess.StartInfo.FileName = fileInfo;
                         nifskopeProcess.Start();
 
-                        Task IsOpen()
+                        Task<bool> IsOpen = Task.Run<bool>(() =>
                         {
-                            if (nifskopeProcess.MainWindowHandle == IntPtr.Zero)
+                            bool isOpenTemp;
+                            while (nifskopeProcess.MainWindowHandle == IntPtr.Zero)
                             {
                                 nifskopeProcess.WaitForInputIdle();
+                                isOpenTemp = false;
                             }
-                            return Task.CompletedTask;
-                        }
-                        IsOpen();
-                        Task<Color> GetBingoColor()
+                            isOpenTemp = true;
+                            IntPtr nifskopeHandleTemp = nifskopeProcess.MainWindowHandle;
+
+                            return Task.FromResult(isOpenTemp);
+                        });
+                        bool isOpen = await IsOpen;
+                        if(isOpen == true)
                         {
-                            //Convert 
-                            Color bingoColorTemp = ColorTranslator.FromHtml(hexString);
-                            int red = bingoColorTemp.R;
-                            int green = bingoColorTemp.G;
-                            int blue = bingoColorTemp.B;
-                            Color bingoColorTemp2 = Color.FromArgb(255, red, green, blue);
-                            return Task.FromResult(bingoColorTemp2);
-
-                        }
-                        Task<Color> bingoColor = GetBingoColor();
-                        Task<Bitmap> GetInitialSS()
-                        {
-                            IUIAutomation pre_Auto2 = new CUIAutomation8();
-                            pre_Auto2 = new CUIAutomation8();
-                            IUIAutomationElement window = pre_Auto2.ElementFromHandle(nifskopeProcess.MainWindowHandle);
-                            Size windowSize = window.GetCurrentPropertyValue(UIA_PropertyIds.UIA_SizePropertyId);
-
-                            Bitmap initialSS = new Bitmap(windowSize.Width, windowSize.Height);
-                            Graphics initialGraphics = Graphics.FromImage(initialSS);
-                            initialGraphics.CopyFromScreen(0, 0, 0, 0, windowSize);
-
-                            return Task.FromResult(initialSS);
-                        }
-                        Task<Bitmap> ssMethod = GetInitialSS();
-                        Bitmap initialSS_Final = ssMethod.Result;
-
-                        Point viewPortPoint2 = new Point();
-                        Point GetViewPort(Point viewPortPoint)
-                        {
-                            IUIAutomation uIAutomation = new CUIAutomation8();
-                            IUIAutomationElement window = uIAutomation.ElementFromHandle(nifskopeProcess.MainWindowHandle);
-                            Size windowSize2 = window.GetCurrentPropertyValue(UIA_PropertyIds.UIA_SizePropertyId);
-
-                            int starterX = windowSize2.Width - 5;
-                            int tempY;
-                            Color menuColor;
-                            for (tempY = 2; tempY < windowSize2.Height;)
+                            Color GetBingoColor()
                             {
-                                tempY++;
-                                menuColor = initialSS_Final.GetPixel(starterX, tempY);
-                                if (bingoColor.Equals(menuColor))
+                                //Convert 
+                                Color bingoColorTemp = ColorTranslator.FromHtml(hexString);
+                                int red = bingoColorTemp.R;
+                                int green = bingoColorTemp.G;
+                                int blue = bingoColorTemp.B;
+                                Color bingoColorTemp2 = Color.FromArgb(255, red, green, blue);
+                                return bingoColorTemp2;
+                            }
+                            Color bingoColor = GetBingoColor();
+
+                            Bitmap initialSS = new Bitmap(500, 500);
+                            Task<Bitmap> GetInitialSS()
+                            {
+                                Size nonLocalSize = new Size();
+
+                                if (InvokeRequired)
                                 {
-                                    viewPortPoint.X = tempY;
-                                    break;
+
+                                    Size localSize = new Size(500, 500);
+                                    Bitmap initialSSLocal = new Bitmap(1920, 1040);
+                                    this.Invoke((MethodInvoker)(() =>
+                                    {
+                                        localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                        initialSSLocal = new Bitmap(localSize.Width, localSize.Height);
+
+                                        Graphics initiaLGraph = Graphics.FromImage(initialSSLocal);
+                                        initiaLGraph.CopyFromScreen(0, 0, 0, 0, localSize);
+
+                                        screenshot_PB.Image = initialSSLocal;
+
+                                    }));
+                                    nonLocalSize = localSize;
+                                    initialSS = initialSSLocal;
                                 }
                                 else
                                 {
-                                    continue;
+                                    nonLocalSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
                                 }
 
+
+                                return Task.FromResult(initialSS);
                             }
-                            tempY = windowSize2.Height / 2;
-                            for (starterX = 0; starterX < windowSize2.Width;)
+
+                            Bitmap initialSS_Final = await GetInitialSS();
+
+                            Point viewPortPoint = new Point();
+                            Point GetViewPort(Point viewPortPoint2)
                             {
-                                starterX++;
-                                menuColor = initialSS_Final.GetPixel(starterX, tempY);
-                                if (bingoColor.Equals(menuColor))
+
+                                Size windowSize2 = new Size();
+                                if (InvokeRequired)
                                 {
-                                    viewPortPoint.Y = starterX;
-                                    break;
+                                    Size localSize = new Size();
+                                    this.Invoke((MethodInvoker)(() =>
+                                    {
+                                        localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    }));
+                                    windowSize2 = localSize;
                                 }
                                 else
                                 {
-                                    continue;
+                                    windowSize2 = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
                                 }
+                                int starterX = windowSize2.Width - 5;
+                                int starterY = (windowSize2.Height / 2);
+                                Color menuColor;
+                                //Start with finding the edge of side menu.
+                                for (int x = 2; x < windowSize2.Width;)
+                                {
+                                    x++;
+                                    menuColor = initialSS_Final.GetPixel(x, starterY);
+                                    if (bingoColor.Equals(menuColor))
+                                    {
+                                        viewPortPoint.X = x;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+                                }
+                                //now find the height of the button area.
+                                for (int y = 2; y < windowSize2.Height;)
+                                {
+                                    y++;
+                                    menuColor = initialSS_Final.GetPixel(starterX, y);
+                                    if (bingoColor.Equals(menuColor))
+                                    {
+                                        viewPortPoint2.Y = y;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        continue;
+                                    }
+                                }
+                                return viewPortPoint2;
                             }
-                            viewPortLocation = new Point(viewPortPoint.X, viewPortPoint.Y);
-                            return viewPortLocation;
-                        }
-                        viewPortLocation = GetViewPort(viewPortPoint2);
+                            viewPortLocation = GetViewPort(viewPortPoint);
 
-                        Size SizeOfScreenshots()
-                        {
-                            //Get size of Nifskope window.
-                            int initialWidth = initialSS_Final.Width;
-                            int initialHeight = initialSS_Final.Height;
-                            //Subtract viewPortLocation x and y. 
-                            int newWidth = initialWidth - viewPortLocation.X;
-                            int newHeight = initialHeight - viewPortLocation.Y;
-                            Size theSizeTemp = new Size(newWidth, newHeight);
-                            return theSizeTemp;
-                        }
-                        theSize = SizeOfScreenshots();
-                        bool DetermineSpace()
-                        {
-                            int bytesPerRow = theSize.Width * bytesPerPixel;
-                            int paddingPerRow = (4 - (bytesPerRow % 4)) % 4;
-                            int totalRowBytes = (bytesPerRow + paddingPerRow) * theSize.Height;
-                            int headerSize = 54;
-                            long totalFileSize = headerSize + totalRowBytes;
-                            string driveRoot = Path.GetPathRoot(savePath);
-                            DriveInfo driveInfo = new DriveInfo(driveRoot);
-                            long spaceLeft = driveInfo.AvailableFreeSpace;
-                            long totalSpaceRequired = totalFileSize * totalScreenshots;
-                            if (spaceLeft >= totalSpaceRequired)
-                                sufficientSpace = true;
-                            else
+                            Size SizeOfScreenshots()
                             {
-                                MessageBox.Show($"It appears that you do not have enough space on your computer for the screenshots. You have {spaceLeft} bytes but you need {totalSpaceRequired} bytes");
-                                sufficientSpace = false;
+                                //Get size of Nifskope window.
+                                int initialWidth = initialSS_Final.Width;
+                                int initialHeight = initialSS_Final.Height;
+                                //Subtract viewPortLocation x and y. 
+                                int newWidth = initialWidth - viewPortLocation.X;
+                                int newHeight = initialHeight - viewPortLocation.Y;
+                                Size theSizeTemp = new Size(newWidth, newHeight);
+                                return theSizeTemp;
                             }
-                            return sufficientSpace;
+                            theSize = SizeOfScreenshots();
+                            bool DetermineSpace()
+                            {
+                                int bytesPerRow = theSize.Width * bytesPerPixel;
+                                int paddingPerRow = (4 - (bytesPerRow % 4)) % 4;
+                                int totalRowBytes = (bytesPerRow + paddingPerRow) * theSize.Height;
+                                int headerSize = 54;
+                                long totalFileSize = headerSize + totalRowBytes;
+                                string driveRoot = Path.GetPathRoot(savePath);
+                                DriveInfo driveInfo = new DriveInfo(driveRoot);
+                                long spaceLeft = driveInfo.AvailableFreeSpace;
+                                long totalSpaceRequired = totalFileSize * totalScreenshots;
+                                if (spaceLeft >= totalSpaceRequired)
+                                    sufficientSpace = true;
+                                else
+                                {
+                                    MessageBox.Show($"It appears that you do not have enough space on your computer for the screenshots. You have {spaceLeft} bytes but you need {totalSpaceRequired} bytes");
+                                    sufficientSpace = false;
+                                }
+                                return sufficientSpace;
+                            }
+                            sufficientSpace = DetermineSpace();
+                            initialSS_Final.Dispose();
+                            Task ResizeUi = Task.Run(() =>
+                            {
+                                if (InvokeRequired)
+                                {
+                                    this.Invoke((MethodInvoker)(() =>
+                                    {
+                                        Size panel1_OS = new Size(panel1.Width, panel1.Height);
+                                        Size topPanel_OS = new Size(topPanel.Width, topPanel.Height);
+                                        Size theSizeToMatch = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                        float xMultiply = viewPortLocation.X / panel1_OS.Width;
+                                        float yMultiply = viewPortLocation.Y / topPanel_OS.Height;
+                                        if (viewPortLocation.Y == topPanel_OS.Height)
+                                        {
+                                            if (viewPortLocation.X == panel1_OS.Width)
+                                            {
+                                                //Somehow, everything is sized perfectly already so change nothing.
+                                            }
+                                            else
+                                            {
+                                                foreach (Control con in panel1.Controls)
+                                                {
+                                                    con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                                                    int newWidth = (int)(con.Width * xMultiply);
+                                                    int newHeight = (int)(con.Height * yMultiply);
+                                                    con.Size = new Size(newWidth, newHeight);
+                                                }
+                                            }
+                                            int height = theSizeToMatch.Height - viewPortLocation.Y;
+                                            panel1.Size = new Size(viewPortLocation.X, height);
+                                            panel1.Location = new Point(0, viewPortLocation.Y);
+                                        }
+                                        else
+                                        {
+                                            //height needs to change. 
+                                            if (viewPortLocation.X == panel1_OS.Width)
+                                            {
+                                                //only height needs to change. 
+                                                foreach (Control con in panel1.Controls)
+                                                {
+                                                    con.Anchor = AnchorStyles.Top;
+                                                    int newHeight = (int)(con.Height * yMultiply);
+                                                    con.Size = new Size(con.Width, newHeight);
+                                                }
+                                                topPanel.Height = viewPortLocation.Y;
+                                                int height = (topPanel_OS.Height + panel1_OS.Height) - viewPortLocation.Y;
+                                                panel1.Size = new Size(viewPortLocation.X, height);
+                                            }
+                                            else
+                                            {
+                                                //Both height and width of panel1 needs to change.
+                                                foreach (Control con in panel1.Controls)
+                                                {
+                                                    con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                                                    int newHeight = (int)(con.Height * yMultiply);
+                                                    int newWidth = (int)(con.Width * xMultiply);
+                                                    con.Size = new Size(newWidth, newHeight);
+                                                }
+                                                topPanel.Height = viewPortLocation.Y;
+                                                int height = this.Height - viewPortLocation.Y;
+                                                panel1.Size = new Size(viewPortLocation.X, height);
+                                            }
+                                        }
+                                    }));
+                                }
+                            });
                         }
-                        sufficientSpace = DetermineSpace();
-                        initialSS_Final.Dispose();
+                        else
+                        {
+                            nifskopeProcess.WaitForInputIdle();
+                        }
                     }
                     MessageBox.Show("Everything has been calculated. If you would like, you can go ahead", "Message", MessageBoxButtons.OK);
                     using (Process screenshotProcess = new Process { StartInfo = startInfo })
@@ -443,35 +574,47 @@ namespace ScreenShotAutoPlus
                                 completedScreenshots = ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
                                 DateTime screenshotDone = DateTime.Now;
                                 TimeSpan screenshotTime = (screenshotDone - startTime);
-                                int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots);
+                                int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots, totalScreenshots);
                                 int screenshotsRemaining = progressInformation[0];
                                 int timeRemaining = progressInformation[1];
                                 bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
-
+                                screenshotProcess.Kill();
+                            }
+                        }
+                        else if (buttonPress == false && sufficientSpace == true)
+                        {
+                            while (completedScreenshots != totalScreenshots)
+                            {
+                                screenshotProcess.StartInfo.FileName = fileNames[completedScreenshots];
+                                List<string> buttonNames = new List<string>();
+                                buttonNames = GetButtonsAndNames(screenshotProcess, buttonNames);
+                                completedScreenshots = ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
+                                DateTime screenshotDone = DateTime.Now;
+                                TimeSpan screenshotTime = (screenshotDone - startTime);
+                                int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots, totalScreenshots);
+                                int screenshotsRemaining = progressInformation[0];
+                                int timeRemaining = progressInformation[1];
+                                bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
                                 screenshotProcess.Kill();
                             }
                         }
                     }
-
                 }
                 else
                 {
-                    //Temp 
-                    MessageBox.Show("Error", "Message", MessageBoxButtons.OK);
+                    
                 }
             }
-                
         }
-        private List<string> GetButtonsAndNames(Process nifskopeProcess, List<string>buttonNames)
+        private List<string> GetButtonsAndNames(Process nifskopeProcess, List<string> buttonNames)
         {
             IUIAutomation processInterface = new CUIAutomation8();
-            
             IntPtr nifskopeHandle = nifskopeProcess.MainWindowHandle;
             IUIAutomationElement9 nifskopeWindow = (IUIAutomationElement9)processInterface.ElementFromHandle(nifskopeHandle);
             var controlTypeCondition = processInterface.CreatePropertyCondition(30003, 50000);
 
             IUIAutomationElementArray buttons = nifskopeWindow.FindAll(TreeScope.TreeScope_Element, controlTypeCondition);
-            for(int i = 0; i < buttons.Length; i++)
+            for (int i = 0; i < buttons.Length; i++)
             {
                 IUIAutomationElement buttonElement = buttons.GetElement(i);
                 string name = buttonElement.CurrentName;
@@ -488,7 +631,6 @@ namespace ScreenShotAutoPlus
             var controlTypeCondition = processInterFace.CreatePropertyCondition(30003, 50000);
             IUIAutomationElementArray buttonArray = window.FindAll(TreeScope.TreeScope_Descendants, controlTypeCondition);
             int index = buttonNames.IndexOf("Load View");
-
             IUIAutomationElement loadView = buttonArray.GetElement(index);
             object patternObj = null;
             //invoke pattern id.
@@ -498,16 +640,15 @@ namespace ScreenShotAutoPlus
                 {
                     IUIAutomationInvokePattern invokePattern = patternObj as IUIAutomationInvokePattern;
                     invokePattern.Invoke();
-                    
+
                 }
                 catch (Exception f)
                 {
                     MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
                         $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
                         $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
-                    
+
                 }
-                
             }
             return Task.CompletedTask;
         }
@@ -515,18 +656,38 @@ namespace ScreenShotAutoPlus
         {
             try
             {
-                int xCoordinate = panel1.Width;
-                int yCoordinate = topPanel.Height;
-                Point coords = new Point(xCoordinate, yCoordinate);
-                Point dest = new Point(0, 0);
-                Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
-                Graphics graphicsNif = Graphics.FromImage(nif);
-                graphicsNif.CopyFromScreen(coords, dest, theSize);
-                string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
-                nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
-                imageList1.ImageSize = screenshot_PB.Size;
-                imageList1.Images.Add(nif);
-                completedScreenshots++;
+                if (InvokeRequired)
+                {
+                    DirectoryInfo dInfo = new DirectoryInfo(savePath);
+                    int completedScreenshotsLocal = dInfo.GetFiles().Count();
+                    this.Invoke((MethodInvoker)(() =>
+                    {
+                        Point coords = new Point(theSize.Width, theSize.Height);
+                        Point dest = new Point(0, 0);
+                        Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
+                        Graphics graphicsNif = Graphics.FromImage(nif);
+                        graphicsNif.CopyFromScreen(coords, dest, theSize);
+                        string TreeNodeNameRevised = fileNames[completedScreenshotsLocal].ToString().Replace(".nif", string.Empty);
+                        nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                        imageList1.ImageSize = screenshot_PB.Size;
+                        imageList1.Images.Add(nif);
+                        completedScreenshotsLocal++;
+                    }));
+                    completedScreenshots = completedScreenshotsLocal;
+                }
+                else
+                {
+                    Point coords = new Point(theSize.Width, theSize.Height);
+                    Point dest = new Point(0, 0);
+                    Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
+                    Graphics graphicsNif = Graphics.FromImage(nif);
+                    graphicsNif.CopyFromScreen(coords, dest, theSize);
+                    string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
+                    nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                    imageList1.ImageSize = screenshot_PB.Size;
+                    imageList1.Images.Add(nif);
+                    completedScreenshots++;
+                }
             }
             catch (Exception f)
             {
@@ -535,7 +696,7 @@ namespace ScreenShotAutoPlus
 
             return completedScreenshots;
         }
-        private int[] CalculateRemainingScreenshotsAndTime(TimeSpan screenshotTime, int completedScreenshots)
+        private int[] CalculateRemainingScreenshotsAndTime(TimeSpan screenshotTime, int completedScreenshots, int totalScreenshots)
         {
             int screenshotsRemaining = totalScreenshots - completedScreenshots;
             int timeRemaining = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
@@ -568,7 +729,7 @@ namespace ScreenShotAutoPlus
         }
         private void PauseAndPlay_BTN_Click(object sender, EventArgs e)
         {//This was supposed to be the method meant to enable the user to pause and the restart teh process where it left off....
-            
+
             isPaused = !isPaused;
             if (isPaused)
             {
@@ -589,7 +750,8 @@ namespace ScreenShotAutoPlus
                 {
                     BeginInvoke((Action)(() =>
                 {
-                    if (screenshotFiles_LB.SelectedIndex <= completedScreenshots)
+                    int index = screenshotFiles_LB.SelectedIndex;
+                    if (imageList1.Images[index] != null)
                     {
                         Image img = imageList1.Images[screenshotFiles_LB.SelectedIndex];
                     }
@@ -605,7 +767,30 @@ namespace ScreenShotAutoPlus
         }
         private void Exit_BTN_Click(object sender, EventArgs e)
         {
-            
+            int completedScreenshots = 0;
+            int totalScreenshots = 0;
+            if (InvokeRequired)
+            {
+                int localTotalScreenshots = 0;
+                int localCompletedScreenshots = 0;
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    DirectoryInfo dirInfo = new DirectoryInfo(savePath);
+                    localTotalScreenshots = screenshotFiles_LB.Items.Count;
+                    localCompletedScreenshots = dirInfo.GetFiles().Count();
+                }));
+                completedScreenshots = localCompletedScreenshots;
+                totalScreenshots = localTotalScreenshots;
+                if (totalScreenshots != completedScreenshots)
+                {
+                    completedScreenshots = totalScreenshots;
+                    Application.Exit();
+                }
+                else
+                {
+                    Application.Exit();
+                }
+            }
             if (totalScreenshots != completedScreenshots)
             {
                 totalScreenshots = completedScreenshots;
@@ -613,9 +798,8 @@ namespace ScreenShotAutoPlus
             }
             else
             {
-                MessageBox.Show("Please either wait until all the screenshots have been taken or pause the process prior to exiting Screenshot Auto Plus. Thanks.", "Error", MessageBoxButtons.OK);
+                Application.Exit();
             }
         }
-
     }
 }
