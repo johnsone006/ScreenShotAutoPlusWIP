@@ -12,6 +12,7 @@ using UIAutomationClient;
 using System.ComponentModel;
 using System.Windows.Forms.VisualStyles;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace ScreenShotAutoPlus
 {
@@ -37,7 +38,7 @@ namespace ScreenShotAutoPlus
             this.Size = formSize;
             this.Location = new Point(0, 0);
         }
-        private string OpenFilesValidated(int totalScreenshots, List<string> fileNames, List<string> filePaths, ref string filePath)
+        private string OpenFilesValidated(ref int totalScreenshots, ref List<string> fileNames, ref List<string> filePaths, ref string filePath)
         {
             //We are going to have to call this method twice, since one of the methods that needs it is the import method and the other one is the background worker do work
             //and we shouldn't use anything from the UIAutomationClient namespace on the Ui thread.
@@ -247,7 +248,7 @@ namespace ScreenShotAutoPlus
             List<string> fileNames = null;
             List<string> filePaths = null;
             int totalScreenshots = 0;
-            if (OpenFilesValidated(totalScreenshots, fileNames, filePaths, ref filePath) != null)
+            if (OpenFilesValidated(ref totalScreenshots, ref fileNames, ref filePaths, ref filePath) != null)
             {
                 DialogResult answer = MessageBox.Show("Do you plan to let the program press the load view button prior to each screenshot automatically?", "Question", MessageBoxButtons.YesNo);
                 if (answer == DialogResult.Yes)
@@ -304,7 +305,38 @@ namespace ScreenShotAutoPlus
                 BackgroundWorker1.RunWorkerAsync();
             }
         }
-        //I had no choice but to make the background worker async. It kept being faster than nifskope!
+        Task<bool> IsNifskopeReady(Process nifskopeProcess)
+        {
+            //Get an interface for nifskope.
+            bool isReady = false;
+            IUIAutomation processInterface = new CUIAutomation8();
+            while(nifskopeProcess.MainWindowHandle == IntPtr.Zero)
+            {
+                nifskopeProcess.WaitForInputIdle();
+            }
+            //Now make the window of nifskope an element.
+            IUIAutomationElement window = processInterface.ElementFromHandle(nifskopeProcess.MainWindowHandle);
+            //Get a window pattern to use to determine the window interaction state of nifskope.
+            IUIAutomationWindowPattern state = null;
+            try
+            {
+                state = window.GetCurrentPattern(10009) as IUIAutomationWindowPattern; //WindowPattern id
+
+                do
+                {
+                    Task.Delay(1000);
+                }
+                while (state.CurrentWindowInteractionState != WindowInteractionState.WindowInteractionState_ReadyForUserInteraction);
+            }
+            catch(Exception f)
+            {
+                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
+                                        $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
+                                        $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+            }
+            isReady = true;
+            return Task.FromResult(isReady);
+        }
         private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
             string filePath = null;
@@ -315,16 +347,18 @@ namespace ScreenShotAutoPlus
             List<string> fileNames = new List<string>();
             List<string> filePaths = new List<String>();
             int totalScreenshots = 0;
-            if (OpenFilesValidated(totalScreenshots, fileNames, filePaths, ref filePath) != null)
+            if (OpenFilesValidated(ref totalScreenshots, ref fileNames, ref filePaths, ref filePath) != null)
             {
                 if (ValidateNumbers(ref hexString, ref waitAfter, ref waitB4, ref bytesPerPixel) == true && ValidateSavePath(ref savePath) != null)
                 {
+
                     Size theSize = new Size();
                     bool sufficientSpace = false;
                     ProcessStartInfo startInfo = new ProcessStartInfo()
                     {
                         WindowStyle = ProcessWindowStyle.Maximized,
                     };
+
                     using (Process nifskopeProcess = new Process { StartInfo = startInfo })
                     {
                         Point viewPortLocation = new Point();
@@ -332,231 +366,211 @@ namespace ScreenShotAutoPlus
                         string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
                         nifskopeProcess.StartInfo.FileName = fileInfo;
                         nifskopeProcess.Start();
-
-                        Task<bool> IsOpen = Task.Run<bool>(() =>
+                        Task<bool> isReadyNow = IsNifskopeReady(nifskopeProcess);
+                        bool readyToContinue = await isReadyNow; //which part of AWAIT do you not understand background worker
+                        Task<Color> GetBingoColor()
                         {
-                            bool isOpenTemp;
-                            while (nifskopeProcess.MainWindowHandle == IntPtr.Zero)
-                            {
-                                nifskopeProcess.WaitForInputIdle();
-                                isOpenTemp = false;
-                            }
-                            isOpenTemp = true;
-                            IntPtr nifskopeHandleTemp = nifskopeProcess.MainWindowHandle;
-
-                            return Task.FromResult(isOpenTemp);
-                        });
-                        bool isOpen = await IsOpen;
-                        if(isOpen == true)
+                            //Convert 
+                            Color bingoColorTemp = ColorTranslator.FromHtml(hexString);
+                            int red = bingoColorTemp.R;
+                            int green = bingoColorTemp.G;
+                            int blue = bingoColorTemp.B;
+                            Color bingoColorTemp2 = Color.FromArgb(255, red, green, blue);
+                            return Task.FromResult<Color>(bingoColorTemp2);
+                        }
+                        Task<Color> GetBingoColorTask = GetBingoColor();
+                        Color bingoColor = await GetBingoColor();
+                        Bitmap initialSS = new Bitmap(500, 500);
+                        Task<Bitmap> GetInitialSS()
                         {
-                            Color GetBingoColor()
-                            {
-                                //Convert 
-                                Color bingoColorTemp = ColorTranslator.FromHtml(hexString);
-                                int red = bingoColorTemp.R;
-                                int green = bingoColorTemp.G;
-                                int blue = bingoColorTemp.B;
-                                Color bingoColorTemp2 = Color.FromArgb(255, red, green, blue);
-                                return bingoColorTemp2;
-                            }
-                            Color bingoColor = GetBingoColor();
+                            Size nonLocalSize = new Size();
 
-                            Bitmap initialSS = new Bitmap(500, 500);
-                            Task<Bitmap> GetInitialSS()
+                            if (InvokeRequired)
                             {
-                                Size nonLocalSize = new Size();
 
-                                if (InvokeRequired)
+                                Size localSize = new Size(500, 500);
+                                Bitmap initialSSLocal = new Bitmap(1920, 1040);
+                                this.Invoke((MethodInvoker)(() =>
                                 {
+                                    localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    initialSSLocal = new Bitmap(localSize.Width, localSize.Height);
 
-                                    Size localSize = new Size(500, 500);
-                                    Bitmap initialSSLocal = new Bitmap(1920, 1040);
-                                    this.Invoke((MethodInvoker)(() =>
-                                    {
-                                        localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
-                                        initialSSLocal = new Bitmap(localSize.Width, localSize.Height);
+                                    Graphics initiaLGraph = Graphics.FromImage(initialSSLocal);
+                                    initiaLGraph.CopyFromScreen(0, 0, 0, 0, localSize);
 
-                                        Graphics initiaLGraph = Graphics.FromImage(initialSSLocal);
-                                        initiaLGraph.CopyFromScreen(0, 0, 0, 0, localSize);
+                                    screenshot_PB.Image = initialSSLocal;
 
-                                        screenshot_PB.Image = initialSSLocal;
+                                }));
+                                nonLocalSize = localSize;
+                                initialSS = initialSSLocal;
+                            }
+                            else
+                            {
+                                nonLocalSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                            }
 
-                                    }));
-                                    nonLocalSize = localSize;
-                                    initialSS = initialSSLocal;
+
+                            return Task.FromResult(initialSS);
+                        }
+
+                        Bitmap initialSS_Final = await GetInitialSS();
+
+                        Point viewPortPoint = new Point();
+                        Point GetViewPort(Point viewPortPoint2)
+                        {
+
+                            Size windowSize2 = new Size();
+                            if (InvokeRequired)
+                            {
+                                Size localSize = new Size();
+                                this.Invoke((MethodInvoker)(() =>
+                                {
+                                    localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                }));
+                                windowSize2 = localSize;
+                            }
+                            else
+                            {
+                                windowSize2 = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                            }
+                            int starterX = windowSize2.Width - 5;
+                            int starterY = (windowSize2.Height / 2);
+                            Color menuColor;
+                            //Start with finding the edge of side menu.
+                            for (int x = 2; x < windowSize2.Width;)
+                            {
+                                x++;
+                                menuColor = initialSS_Final.GetPixel(x, starterY);
+                                if (bingoColor.Equals(menuColor))
+                                {
+                                    viewPortPoint.X = x;
+                                    break;
                                 }
                                 else
                                 {
-                                    nonLocalSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    continue;
                                 }
-
-
-                                return Task.FromResult(initialSS);
                             }
-
-                            Bitmap initialSS_Final = await GetInitialSS();
-
-                            Point viewPortPoint = new Point();
-                            Point GetViewPort(Point viewPortPoint2)
+                            //now find the height of the button area.
+                            for (int y = 2; y < windowSize2.Height;)
                             {
-
-                                Size windowSize2 = new Size();
-                                if (InvokeRequired)
+                                y++;
+                                menuColor = initialSS_Final.GetPixel(starterX, y);
+                                if (bingoColor.Equals(menuColor))
                                 {
-                                    Size localSize = new Size();
-                                    this.Invoke((MethodInvoker)(() =>
-                                    {
-                                        localSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
-                                    }));
-                                    windowSize2 = localSize;
+                                    viewPortPoint2.Y = y;
+                                    break;
                                 }
                                 else
                                 {
-                                    windowSize2 = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    continue;
                                 }
-                                int starterX = windowSize2.Width - 5;
-                                int starterY = (windowSize2.Height / 2);
-                                Color menuColor;
-                                //Start with finding the edge of side menu.
-                                for (int x = 2; x < windowSize2.Width;)
-                                {
-                                    x++;
-                                    menuColor = initialSS_Final.GetPixel(x, starterY);
-                                    if (bingoColor.Equals(menuColor))
-                                    {
-                                        viewPortPoint.X = x;
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        continue;
-                                    }
-                                }
-                                //now find the height of the button area.
-                                for (int y = 2; y < windowSize2.Height;)
-                                {
-                                    y++;
-                                    menuColor = initialSS_Final.GetPixel(starterX, y);
-                                    if (bingoColor.Equals(menuColor))
-                                    {
-                                        viewPortPoint2.Y = y;
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        continue;
-                                    }
-                                }
-                                return viewPortPoint2;
                             }
-                            viewPortLocation = GetViewPort(viewPortPoint);
+                            return viewPortPoint2;
+                        }
+                        viewPortLocation = GetViewPort(viewPortPoint);
 
-                            Size SizeOfScreenshots()
+                        Size SizeOfScreenshots()
+                        {
+                            //Get size of Nifskope window.
+                            int initialWidth = initialSS_Final.Width;
+                            int initialHeight = initialSS_Final.Height;
+                            //Subtract viewPortLocation x and y. 
+                            int newWidth = initialWidth - viewPortLocation.X;
+                            int newHeight = initialHeight - viewPortLocation.Y;
+                            Size theSizeTemp = new Size(newWidth, newHeight);
+                            return theSizeTemp;
+                        }
+                        theSize = SizeOfScreenshots();
+                        bool DetermineSpace()
+                        {
+                            int bytesPerRow = theSize.Width * bytesPerPixel;
+                            int paddingPerRow = (4 - (bytesPerRow % 4)) % 4;
+                            int totalRowBytes = (bytesPerRow + paddingPerRow) * theSize.Height;
+                            int headerSize = 54;
+                            long totalFileSize = headerSize + totalRowBytes;
+                            string driveRoot = Path.GetPathRoot(savePath);
+                            DriveInfo driveInfo = new DriveInfo(driveRoot);
+                            long spaceLeft = driveInfo.AvailableFreeSpace;
+                            long totalSpaceRequired = totalFileSize * totalScreenshots;
+                            if (spaceLeft >= totalSpaceRequired)
+                                sufficientSpace = true;
+                            else
                             {
-                                //Get size of Nifskope window.
-                                int initialWidth = initialSS_Final.Width;
-                                int initialHeight = initialSS_Final.Height;
-                                //Subtract viewPortLocation x and y. 
-                                int newWidth = initialWidth - viewPortLocation.X;
-                                int newHeight = initialHeight - viewPortLocation.Y;
-                                Size theSizeTemp = new Size(newWidth, newHeight);
-                                return theSizeTemp;
+                                MessageBox.Show($"It appears that you do not have enough space on your computer for the screenshots. You have {spaceLeft} bytes but you need {totalSpaceRequired} bytes");
+                                sufficientSpace = false;
                             }
-                            theSize = SizeOfScreenshots();
-                            bool DetermineSpace()
+                            return sufficientSpace;
+                        }
+                        sufficientSpace = DetermineSpace();
+                        initialSS_Final.Dispose();
+                        Task ResizeUi = Task.Run(() =>
+                        {
+                            if (InvokeRequired)
                             {
-                                int bytesPerRow = theSize.Width * bytesPerPixel;
-                                int paddingPerRow = (4 - (bytesPerRow % 4)) % 4;
-                                int totalRowBytes = (bytesPerRow + paddingPerRow) * theSize.Height;
-                                int headerSize = 54;
-                                long totalFileSize = headerSize + totalRowBytes;
-                                string driveRoot = Path.GetPathRoot(savePath);
-                                DriveInfo driveInfo = new DriveInfo(driveRoot);
-                                long spaceLeft = driveInfo.AvailableFreeSpace;
-                                long totalSpaceRequired = totalFileSize * totalScreenshots;
-                                if (spaceLeft >= totalSpaceRequired)
-                                    sufficientSpace = true;
-                                else
+                                this.Invoke((MethodInvoker)(() =>
                                 {
-                                    MessageBox.Show($"It appears that you do not have enough space on your computer for the screenshots. You have {spaceLeft} bytes but you need {totalSpaceRequired} bytes");
-                                    sufficientSpace = false;
-                                }
-                                return sufficientSpace;
-                            }
-                            sufficientSpace = DetermineSpace();
-                            initialSS_Final.Dispose();
-                            Task ResizeUi = Task.Run(() =>
-                            {
-                                if (InvokeRequired)
-                                {
-                                    this.Invoke((MethodInvoker)(() =>
+                                    Size panel1_OS = new Size(panel1.Width, panel1.Height);
+                                    Size topPanel_OS = new Size(topPanel.Width, topPanel.Height);
+                                    Size theSizeToMatch = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    float xMultiply = viewPortLocation.X / panel1_OS.Width;
+                                    float yMultiply = viewPortLocation.Y / topPanel_OS.Height;
+                                    if (viewPortLocation.Y == topPanel_OS.Height)
                                     {
-                                        Size panel1_OS = new Size(panel1.Width, panel1.Height);
-                                        Size topPanel_OS = new Size(topPanel.Width, topPanel.Height);
-                                        Size theSizeToMatch = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
-                                        float xMultiply = viewPortLocation.X / panel1_OS.Width;
-                                        float yMultiply = viewPortLocation.Y / topPanel_OS.Height;
-                                        if (viewPortLocation.Y == topPanel_OS.Height)
+                                        if (viewPortLocation.X == panel1_OS.Width)
                                         {
-                                            if (viewPortLocation.X == panel1_OS.Width)
-                                            {
-                                                //Somehow, everything is sized perfectly already so change nothing.
-                                            }
-                                            else
-                                            {
-                                                foreach (Control con in panel1.Controls)
-                                                {
-                                                    con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
-                                                    int newWidth = (int)(con.Width * xMultiply);
-                                                    int newHeight = (int)(con.Height * yMultiply);
-                                                    con.Size = new Size(newWidth, newHeight);
-                                                }
-                                            }
-                                            int height = theSizeToMatch.Height - viewPortLocation.Y;
-                                            panel1.Size = new Size(viewPortLocation.X, height);
-                                            panel1.Location = new Point(0, viewPortLocation.Y);
+                                            //Somehow, everything is sized perfectly already so change nothing.
                                         }
                                         else
                                         {
-                                            //height needs to change. 
-                                            if (viewPortLocation.X == panel1_OS.Width)
+                                            foreach (Control con in panel1.Controls)
                                             {
-                                                //only height needs to change. 
-                                                foreach (Control con in panel1.Controls)
-                                                {
-                                                    con.Anchor = AnchorStyles.Top;
-                                                    int newHeight = (int)(con.Height * yMultiply);
-                                                    con.Size = new Size(con.Width, newHeight);
-                                                }
-                                                topPanel.Height = viewPortLocation.Y;
-                                                int height = (topPanel_OS.Height + panel1_OS.Height) - viewPortLocation.Y;
-                                                panel1.Size = new Size(viewPortLocation.X, height);
-                                            }
-                                            else
-                                            {
-                                                //Both height and width of panel1 needs to change.
-                                                foreach (Control con in panel1.Controls)
-                                                {
-                                                    con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
-                                                    int newHeight = (int)(con.Height * yMultiply);
-                                                    int newWidth = (int)(con.Width * xMultiply);
-                                                    con.Size = new Size(newWidth, newHeight);
-                                                }
-                                                topPanel.Height = viewPortLocation.Y;
-                                                int height = this.Height - viewPortLocation.Y;
-                                                panel1.Size = new Size(viewPortLocation.X, height);
+                                                con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                                                int newWidth = (int)(con.Width * xMultiply);
+                                                int newHeight = (int)(con.Height * yMultiply);
+                                                con.Size = new Size(newWidth, newHeight);
                                             }
                                         }
-                                    }));
-                                }
-                            });
-                        }
-                        else
-                        {
-                            nifskopeProcess.WaitForInputIdle();
-                        }
+                                        int height = theSizeToMatch.Height - viewPortLocation.Y;
+                                        panel1.Size = new Size(viewPortLocation.X, height);
+                                        panel1.Location = new Point(0, viewPortLocation.Y);
+                                    }
+                                    else
+                                    {
+                                        //height needs to change. 
+                                        if (viewPortLocation.X == panel1_OS.Width)
+                                        {
+                                            //only height needs to change. 
+                                            foreach (Control con in panel1.Controls)
+                                            {
+                                                con.Anchor = AnchorStyles.Top;
+                                                int newHeight = (int)(con.Height * yMultiply);
+                                                con.Size = new Size(con.Width, newHeight);
+                                            }
+                                            topPanel.Height = viewPortLocation.Y;
+                                            int height = (topPanel_OS.Height + panel1_OS.Height) - viewPortLocation.Y;
+                                            panel1.Size = new Size(viewPortLocation.X, height);
+                                        }
+                                        else
+                                        {
+                                            //Both height and width of panel1 needs to change.
+                                            foreach (Control con in panel1.Controls)
+                                            {
+                                                con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                                                int newHeight = (int)(con.Height * yMultiply);
+                                                int newWidth = (int)(con.Width * xMultiply);
+                                                con.Size = new Size(newWidth, newHeight);
+                                            }
+                                            topPanel.Height = viewPortLocation.Y;
+                                            int height = this.Height - viewPortLocation.Y;
+                                            panel1.Size = new Size(viewPortLocation.X, height);
+                                        }
+                                    }
+                                }));
+                            }
+                        });
                     }
-                    MessageBox.Show("Everything has been calculated. If you would like, you can go ahead", "Message", MessageBoxButtons.OK);
+                    MessageBox.Show("Everything has been calculated.", "Message", MessageBoxButtons.OK);
                     using (Process screenshotProcess = new Process { StartInfo = startInfo })
                     {
                         int completedScreenshots = 0;
@@ -602,10 +616,12 @@ namespace ScreenShotAutoPlus
                 }
                 else
                 {
-                    
+                    MessageBox.Show("There is something wrong with the text you inputted into the program. ");
                 }
             }
         }
+        //I'm adding a seprate method to check if the process has loaded completely to isolate the UIAutomation elements to inside a method.
+
         private List<string> GetButtonsAndNames(Process nifskopeProcess, List<string> buttonNames)
         {
             IUIAutomation processInterface = new CUIAutomation8();
