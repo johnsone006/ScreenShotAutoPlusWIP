@@ -305,38 +305,6 @@ namespace ScreenShotAutoPlus
                 BackgroundWorker1.RunWorkerAsync();
             }
         }
-        Task<bool> IsNifskopeReady(Process nifskopeProcess)
-        {
-            //Get an interface for nifskope.
-            bool isReady = false;
-            IUIAutomation processInterface = new CUIAutomation8();
-            while(nifskopeProcess.MainWindowHandle == IntPtr.Zero)
-            {
-                nifskopeProcess.WaitForInputIdle();
-            }
-            //Now make the window of nifskope an element.
-            IUIAutomationElement window = processInterface.ElementFromHandle(nifskopeProcess.MainWindowHandle);
-            //Get a window pattern to use to determine the window interaction state of nifskope.
-            IUIAutomationWindowPattern state = null;
-            try
-            {
-                state = window.GetCurrentPattern(10009) as IUIAutomationWindowPattern; //WindowPattern id
-
-                do
-                {
-                    Task.Delay(1000);
-                }
-                while (state.CurrentWindowInteractionState != WindowInteractionState.WindowInteractionState_ReadyForUserInteraction);
-            }
-            catch(Exception f)
-            {
-                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
-                                        $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
-                                        $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
-            }
-            isReady = true;
-            return Task.FromResult(isReady);
-        }
         private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
             string filePath = null;
@@ -358,16 +326,51 @@ namespace ScreenShotAutoPlus
                     {
                         WindowStyle = ProcessWindowStyle.Maximized,
                     };
-
                     using (Process nifskopeProcess = new Process { StartInfo = startInfo })
                     {
                         Point viewPortLocation = new Point();
-
                         string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
                         nifskopeProcess.StartInfo.FileName = fileInfo;
                         nifskopeProcess.Start();
-                        Task<bool> isReadyNow = IsNifskopeReady(nifskopeProcess);
-                        bool readyToContinue = await isReadyNow; //which part of AWAIT do you not understand background worker
+                        while(nifskopeProcess.MainWindowHandle == IntPtr.Zero)
+                        {
+                            nifskopeProcess.WaitForInputIdle();
+                        }
+                        Task IsNifskopeReady()
+                        {
+                            
+                            //Get the desktop.
+                            IUIAutomation auto= new CUIAutomation8();
+                            IUIAutomationElement nifskope = auto.ElementFromHandle(nifskopeProcess.MainWindowHandle);
+                            IUIAutomationCondition cond = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50000);
+                            IUIAutomationCondition cond2 = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_IsEnabledPropertyId, false);
+                            var andCondition = auto.CreateAndCondition(cond, cond2);
+
+                            IUIAutomationElementArray array = nifskope.FindAll(TreeScope.TreeScope_Descendants, andCondition);
+                            IUIAutomationElement button =  null;
+                            for(int i = 0; i < array.Length; i++)
+                            {
+                                IUIAutomationElement candidate = array.GetElement(i);
+                                bool isEnabled = candidate.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
+                                if(isEnabled == false)
+                                {
+                                    button = candidate;
+                                    break;
+                                }
+
+                            }
+                            bool isEnabled2 = false;
+                            do
+                            {
+                                object propertyValue = button.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
+                                isEnabled2 = (bool)(propertyValue);
+
+                            }
+                            while (isEnabled2 == false);
+                            return Task.CompletedTask;
+                        };
+                        Task nifskopeChecker = IsNifskopeReady();
+                        await nifskopeChecker;
                         Task<Color> GetBingoColor()
                         {
                             //Convert 
@@ -378,8 +381,9 @@ namespace ScreenShotAutoPlus
                             Color bingoColorTemp2 = Color.FromArgb(255, red, green, blue);
                             return Task.FromResult<Color>(bingoColorTemp2);
                         }
-                        Task<Color> GetBingoColorTask = GetBingoColor();
+
                         Color bingoColor = await GetBingoColor();
+                        
                         Bitmap initialSS = new Bitmap(500, 500);
                         Task<Bitmap> GetInitialSS()
                         {
@@ -397,9 +401,6 @@ namespace ScreenShotAutoPlus
 
                                     Graphics initiaLGraph = Graphics.FromImage(initialSSLocal);
                                     initiaLGraph.CopyFromScreen(0, 0, 0, 0, localSize);
-
-                                    screenshot_PB.Image = initialSSLocal;
-
                                 }));
                                 nonLocalSize = localSize;
                                 initialSS = initialSSLocal;
@@ -443,7 +444,7 @@ namespace ScreenShotAutoPlus
                                 menuColor = initialSS_Final.GetPixel(x, starterY);
                                 if (bingoColor.Equals(menuColor))
                                 {
-                                    viewPortPoint.X = x;
+                                    viewPortPoint2.X = x;
                                     break;
                                 }
                                 else
@@ -569,49 +570,30 @@ namespace ScreenShotAutoPlus
                                 }));
                             }
                         });
+                        MessageBox.Show("Everything was calculated. If you would like, you can change the background color of the viewport of nifskope back to a normal color. Otherwise, please close out of nifskope so the screenshot process can continue.", "Notification", MessageBoxButtons.OK);
+                        nifskopeProcess.WaitForExit();
                     }
-                    MessageBox.Show("Everything has been calculated.", "Message", MessageBoxButtons.OK);
-                    using (Process screenshotProcess = new Process { StartInfo = startInfo })
+                    using (Process nifskopeProcess2 = new Process { StartInfo = startInfo })
                     {
                         int completedScreenshots = 0;
                         pauseCompletionSource.SetResult(false);
+                        while(completedScreenshots != totalScreenshots)
+                        {
+                            nifskopeProcess2.StartInfo.FileName = fileNames[completedScreenshots];
+                            
+                        }
+                        nifskopeProcess2.Start();
                         DateTime startTime = DateTime.Now;
-                        if (buttonPress == true && sufficientSpace == true)
-                        {
-                            while (completedScreenshots != totalScreenshots)
-                            {
-                                screenshotProcess.StartInfo.FileName = fileNames[completedScreenshots];
-                                List<string> buttonNames = new List<string>();
-                                buttonNames = GetButtonsAndNames(screenshotProcess, buttonNames);
-                                Task button = AutomaticButtonPress(screenshotProcess, buttonNames);
-                                button.Wait();
-                                completedScreenshots = ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
-                                DateTime screenshotDone = DateTime.Now;
-                                TimeSpan screenshotTime = (screenshotDone - startTime);
-                                int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots, totalScreenshots);
-                                int screenshotsRemaining = progressInformation[0];
-                                int timeRemaining = progressInformation[1];
-                                bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
-                                screenshotProcess.Kill();
-                            }
-                        }
-                        else if (buttonPress == false && sufficientSpace == true)
-                        {
-                            while (completedScreenshots != totalScreenshots)
-                            {
-                                screenshotProcess.StartInfo.FileName = fileNames[completedScreenshots];
-                                List<string> buttonNames = new List<string>();
-                                buttonNames = GetButtonsAndNames(screenshotProcess, buttonNames);
-                                completedScreenshots = ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
-                                DateTime screenshotDone = DateTime.Now;
-                                TimeSpan screenshotTime = (screenshotDone - startTime);
-                                int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots, totalScreenshots);
-                                int screenshotsRemaining = progressInformation[0];
-                                int timeRemaining = progressInformation[1];
-                                bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
-                                screenshotProcess.Kill();
-                            }
-                        }
+                        Task button = AutomaticButtonPress(nifskopeProcess2);
+                        await button;
+                        completedScreenshots = await ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
+                        DateTime screenshotDone = DateTime.Now;
+                        TimeSpan screenshotTime = (screenshotDone - startTime);
+                        int[] progressInformation = CalculateRemainingScreenshotsAndTime(screenshotTime, completedScreenshots, totalScreenshots);
+                        int screenshotsRemaining = progressInformation[0];
+                        int timeRemaining = progressInformation[1];
+                        bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
+                        nifskopeProcess2.Kill();
                     }
                 }
                 else
@@ -622,53 +604,29 @@ namespace ScreenShotAutoPlus
         }
         //I'm adding a seprate method to check if the process has loaded completely to isolate the UIAutomation elements to inside a method.
 
-        private List<string> GetButtonsAndNames(Process nifskopeProcess, List<string> buttonNames)
+       
+        private Task AutomaticButtonPress(Process nifskopeProcess2)
         {
-            IUIAutomation processInterface = new CUIAutomation8();
-            IntPtr nifskopeHandle = nifskopeProcess.MainWindowHandle;
-            IUIAutomationElement9 nifskopeWindow = (IUIAutomationElement9)processInterface.ElementFromHandle(nifskopeHandle);
-            var controlTypeCondition = processInterface.CreatePropertyCondition(30003, 50000);
 
-            IUIAutomationElementArray buttons = nifskopeWindow.FindAll(TreeScope.TreeScope_Element, controlTypeCondition);
-            for (int i = 0; i < buttons.Length; i++)
-            {
-                IUIAutomationElement buttonElement = buttons.GetElement(i);
-                string name = buttonElement.CurrentName;
-                if (name == null || name == string.Empty)
-                    name = "Unspecified";
-            }
-            return buttonNames;
-        }
-        private Task AutomaticButtonPress(Process nifskopeProcess, List<string> buttonNames)
-        {
-            //Get list of buttons again. We want to each object from the UIAutomationClient namespace **inside** methods as much as possible to ensure they'll be grabbed by the GC.
-            IUIAutomation processInterFace = new CUIAutomation8();
-            IUIAutomationElement window = processInterFace.ElementFromHandle(nifskopeProcess.MainWindowHandle);
-            var controlTypeCondition = processInterFace.CreatePropertyCondition(30003, 50000);
-            IUIAutomationElementArray buttonArray = window.FindAll(TreeScope.TreeScope_Descendants, controlTypeCondition);
-            int index = buttonNames.IndexOf("Load View");
-            IUIAutomationElement loadView = buttonArray.GetElement(index);
-            object patternObj = null;
-            //invoke pattern id.
-            if (loadView.GetCurrentPattern(UIA_PropertyIds.UIA_IsInvokePatternAvailablePropertyId) != 0)
-            {
-                try
-                {
-                    IUIAutomationInvokePattern invokePattern = patternObj as IUIAutomationInvokePattern;
-                    invokePattern.Invoke();
+            //Get the desktop.
+            IUIAutomation automation = new CUIAutomation8();
+            IUIAutomationElement desktop = automation.GetRootElement();
+            IUIAutomationCondition processIDCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
+            IUIAutomationCondition controlType = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50032);
+            var conditionAnd = automation.CreateAndCondition(processIDCond,controlType);
+            IUIAutomationElement nifskope = desktop.FindFirst(TreeScope.TreeScope_Children, conditionAnd);
 
-                }
-                catch (Exception f)
-                {
-                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + " +
-                        $"InnerException: {f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + " +
-                        $"StackTrace: {f.StackTrace}\n + TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+            //Now lets find the load view button.
+            IUIAutomationCondition buttonCondtion = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50000); //button condition
+            IUIAutomationCondition nameCondition = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_NamePropertyId, "Load View");
+            var conditionAnd2 = automation.CreateAndCondition(buttonCondtion, nameCondition);
+            IUIAutomationElement loadView = nifskope.FindFirst(TreeScope.TreeScope_Children, conditionAnd2);
 
-                }
-            }
+            IUIAutomationInvokePattern invoke = loadView.GetCurrentPattern(10000);
+            invoke.Invoke();
             return Task.CompletedTask;
         }
-        private int ScreenshotMethod(Size theSize, List<string> fileNames, ref int completedScreenshots, string savePath)
+        private Task<int> ScreenshotMethod(Size theSize, List<string> fileNames, ref int completedScreenshots, string savePath)
         {
             try
             {
@@ -710,7 +668,7 @@ namespace ScreenShotAutoPlus
                 MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
             }
 
-            return completedScreenshots;
+            return Task.FromResult(completedScreenshots) ;
         }
         private int[] CalculateRemainingScreenshotsAndTime(TimeSpan screenshotTime, int completedScreenshots, int totalScreenshots)
         {
