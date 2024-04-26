@@ -33,7 +33,6 @@
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.waitB4_TB = new System.Windows.Forms.TextBox();
             this.waitAfter_TB = new System.Windows.Forms.TextBox();
-            this.colorCode_TB = new System.Windows.Forms.TextBox();
             this.import_BTN = new System.Windows.Forms.Button();
             this.Start_BTN = new System.Windows.Forms.Button();
             this.pauseAndPlay_BTN = new System.Windows.Forms.Button();
@@ -43,9 +42,9 @@
             this.screenshotFiles_LB = new System.Windows.Forms.ListBox();
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.buttonNames = new System.Windows.Forms.ListBox();
             this.completedScreenshots_LBL = new System.Windows.Forms.Label();
             this.Exit_BTN = new System.Windows.Forms.Button();
-            this.label1 = new System.Windows.Forms.Label();
             this.waitB4_LBL = new System.Windows.Forms.Label();
             this.waitAfter_LBL = new System.Windows.Forms.Label();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
@@ -85,18 +84,6 @@
             this.waitAfter_TB.TabIndex = 2;
             this.toolTip1.SetToolTip(this.waitAfter_TB, "Type the number of miliseconds you want the program to wait after taking each scr" +
         "eenshot");
-            // 
-            // colorCode_TB
-            // 
-            this.colorCode_TB.AccessibleDescription = "Type in the hex color code for the viewport of nifskope here.";
-            this.colorCode_TB.AccessibleName = "Color code text box";
-            this.colorCode_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
-            this.colorCode_TB.Location = new System.Drawing.Point(57, 202);
-            this.colorCode_TB.Name = "colorCode_TB";
-            this.colorCode_TB.Size = new System.Drawing.Size(100, 22);
-            this.colorCode_TB.TabIndex = 3;
-            this.toolTip1.SetToolTip(this.colorCode_TB, "Type  in hexadecimal color code for the background of the viewport in Nifskope he" +
-        "re");
             // 
             // import_BTN
             // 
@@ -196,10 +183,9 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
+            this.panel1.Controls.Add(this.buttonNames);
             this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
-            this.panel1.Controls.Add(this.colorCode_TB);
-            this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.screenshot_PB);
             this.panel1.Controls.Add(this.screenshotFiles_LB);
             this.panel1.Controls.Add(this.timeLeft_LBL);
@@ -216,6 +202,15 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
+            // 
+            // buttonNames
+            // 
+            this.buttonNames.FormattingEnabled = true;
+            this.buttonNames.ItemHeight = 16;
+            this.buttonNames.Location = new System.Drawing.Point(11, 287);
+            this.buttonNames.Name = "buttonNames";
+            this.buttonNames.Size = new System.Drawing.Size(197, 84);
+            this.buttonNames.TabIndex = 28;
             // 
             // completedScreenshots_LBL
             // 
@@ -235,15 +230,6 @@
             this.Exit_BTN.Text = "Exit";
             this.Exit_BTN.UseVisualStyleBackColor = true;
             this.Exit_BTN.Click += new System.EventHandler(this.Exit_BTN_Click);
-            // 
-            // label1
-            // 
-            this.label1.Location = new System.Drawing.Point(15, 163);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(189, 36);
-            this.label1.TabIndex = 25;
-            this.label1.Text = "Hex color code of background 4 viewport of nifskope:";
-            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // waitB4_LBL
             // 
@@ -314,14 +300,13 @@
         private System.Windows.Forms.ListBox screenshotFiles_LB;
         private System.Windows.Forms.PictureBox screenshot_PB;
         private System.Windows.Forms.Panel panel1;
-        private System.Windows.Forms.TextBox colorCode_TB;
-        private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.Label waitAfter_LBL;
         private System.Windows.Forms.Button Exit_BTN;
         private System.Windows.Forms.Label completedScreenshots_LBL;
         private System.Windows.Forms.ImageList imageList1;
         private System.ComponentModel.BackgroundWorker BackgroundWorker1;
+        private System.Windows.Forms.ListBox buttonNames;
     }
 }
 
