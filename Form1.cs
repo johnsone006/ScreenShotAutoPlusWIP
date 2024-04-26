@@ -35,7 +35,7 @@ namespace ScreenShotAutoPlus
         private void Form1_Load(object sender, EventArgs e)
         {
             //I have officially gotten tired of typing in my values every time I hit debug. So the next statement will only remain here until I get this program working correctly.
-            
+
             //the rest of the code in this block is what fixed the fact that the ui tended to sometimes either overlap or be overlaped by the taskbar.
             Size formSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
             this.Size = formSize;
@@ -60,7 +60,7 @@ namespace ScreenShotAutoPlus
                         else
                         {
                             localFilePath = null;
-                            
+
                         }
                     }
                 }));
@@ -120,7 +120,7 @@ namespace ScreenShotAutoPlus
                     }
                 }
             }
-            catch(Exception f)
+            catch (Exception f)
             {
                 MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
                        $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
@@ -208,7 +208,7 @@ namespace ScreenShotAutoPlus
 
                 this.Invoke((MethodInvoker)(() =>
                 {
-                    
+
                     if (int.TryParse(waitAfter_TB.Text, out int waitA) == true && int.TryParse(waitB4_TB.Text, out int waitB) == true)
                     {
                         if (waitA >= 0 && waitB >= 0)
@@ -232,7 +232,7 @@ namespace ScreenShotAutoPlus
                     return false;
                 }
                 bytesPerPixel = localBytesPerPixel;
-               
+
                 localWaitAfter = waitAfter;
                 localWaitB4 = waitB4;
             }
@@ -241,7 +241,7 @@ namespace ScreenShotAutoPlus
         private void Import_BTN_Click(object sender, EventArgs e)
         {
 
-            if(ValidateFilePath() != null)
+            if (ValidateFilePath() != null)
             {
                 int invalidFiles = 0;
                 try
@@ -318,13 +318,13 @@ namespace ScreenShotAutoPlus
                     {
                         Point viewPortLocation = new Point();
                         nifskopeProcess.StartInfo.FileName = fileInfo;
-                        
+
                         nifskopeProcess.Start();
                         while (nifskopeProcess.MainWindowHandle == IntPtr.Zero)
                         {
                             nifskopeProcess.WaitForInputIdle();
                         }
-                        
+
                         Point viewPortPoint = new Point();
                         Task<Point> GetViewPortPoint()
                         {
@@ -336,14 +336,14 @@ namespace ScreenShotAutoPlus
                             IUIAutomationElement viewPort = desktop.FindFirst(TreeScope.TreeScope_Descendants, classCondition);
                             double[] boundingRectArray = viewPort.GetCurrentPropertyValue(UIA_PropertyIds.UIA_BoundingRectanglePropertyId);
                             int width = (int)boundingRectArray[2] - (int)boundingRectArray[0];
-                            
+
                             int height = (int)boundingRectArray[3] - (int)boundingRectArray[1];
                             theSize = new Size(width, height);
                             viewPortPoint = new Point((int)boundingRectArray[0], (int)boundingRectArray[1]);
-                                                      
+
                             return Task.FromResult(viewPortPoint);
                         }
-                        Task<Point> viewPortPointTask =  GetViewPortPoint();
+                        Task<Point> viewPortPointTask = GetViewPortPoint();
                         viewPortLocation = await viewPortPointTask;
                         Task<bool> DetermineSpace()
                         {
@@ -502,124 +502,206 @@ namespace ScreenShotAutoPlus
                     }//End of first using statement.
                     using (Process nifskopeProcess2 = new Process { StartInfo = startInfo })
                     {
-                     
-
                         DialogResult answer = MessageBox.Show("Do you plan to let the program press the load view button prior to each screenshot automatically?", "Question", MessageBoxButtons.YesNoCancel);
-                        if(answer == DialogResult.Yes)
+                        if (answer == DialogResult.Yes)
                         {
-                            
-
-                            while (completedScreenshots != totalScreenshots)
+                            if (sufficientSpace == true)
                             {
-                                nifskopeProcess2.StartInfo.FileName = filePaths[completedScreenshots];
-                                nifskopeProcess2.Start();
-                                DateTime startTime = DateTime.Now;
-                                Task<bool> StallUntilNifskopeIsReady() 
+                                while (completedScreenshots != totalScreenshots)
                                 {
-                                    IUIAutomation automation = new CUIAutomation8();
-                                    IUIAutomationElement desktop = automation.GetRootElement();
-                                    while (nifskopeProcess2.MainWindowHandle == IntPtr.Zero)
+                                    nifskopeProcess2.StartInfo.FileName = filePaths[completedScreenshots];
+                                    nifskopeProcess2.Start();
+                                    DateTime startTime = DateTime.Now;
+                                    Task<bool> StallUntilNifskopeIsReady = Task.Run<bool>(() =>
                                     {
-                                        nifskopeProcess2.WaitForInputIdle();
-                                    }
-                                    IUIAutomationCondition processIDCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
-                                    IUIAutomationElement nifskopeLocal = desktop.FindFirst(TreeScope.TreeScope_Descendants, processIDCond);
-
-                                    object controlType = nifskopeLocal.GetCurrentPropertyValue(UIA_PropertyIds.UIA_ControlTypePropertyId);
-                                    //Now lets get an array of unenabled buttons.
-                                    IUIAutomationCondition buttonsCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50000);
-                                    IUIAutomationCondition notEnabledCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_IsEnabledPropertyId, false);
-                                    var andCondition = automation.CreateAndCondition(buttonsCond, notEnabledCond);
-                                    IUIAutomationElementArray buttons = nifskopeLocal.FindAll(TreeScope.TreeScope_Element, andCondition);
-                                    if(buttons.Length > 0)
-                                    {
-                                        IUIAutomationElement chosenButton = null;
-                                        for (int i = 0; i < buttons.Length; i++)
+                                        IUIAutomation automation = new CUIAutomation8();
+                                        IUIAutomationElement desktop = automation.GetRootElement();
+                                        while (nifskopeProcess2.MainWindowHandle == IntPtr.Zero)
                                         {
-                                            IUIAutomationElement candidate = buttons.GetElement(i);
-                                            bool isEnabled = candidate.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
-                                            if (isEnabled == false)
+                                            nifskopeProcess2.WaitForInputIdle();
+                                        }
+                                        IUIAutomationCondition processIDCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
+                                        IUIAutomationElement nifskopeLocal = desktop.FindFirst(TreeScope.TreeScope_Descendants, processIDCond);
+
+                                        object controlType = nifskopeLocal.GetCurrentPropertyValue(UIA_PropertyIds.UIA_ControlTypePropertyId);
+                                        //Now lets get an array of unenabled buttons.
+                                        IUIAutomationCondition buttonsCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50000);
+                                        IUIAutomationCondition notEnabledCond = automation.CreatePropertyCondition(UIA_PropertyIds.UIA_IsEnabledPropertyId, false);
+                                        var andCondition = automation.CreateAndCondition(buttonsCond, notEnabledCond);
+                                        IUIAutomationElementArray buttons = nifskopeLocal.FindAll(TreeScope.TreeScope_Element, andCondition);
+                                        if (buttons.Length > 0)
+                                        {
+                                            IUIAutomationElement chosenButton = null;
+                                            for (int i = 0; i < buttons.Length; i++)
                                             {
-                                                string name = string.Empty;
-                                                object candidateName = candidate.GetCurrentPropertyValue(UIA_PropertyIds.UIA_NamePropertyId);
-                                                if (!candidateName.Equals(name))
+                                                IUIAutomationElement candidate = buttons.GetElement(i);
+                                                bool isEnabled = candidate.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
+                                                if (isEnabled == false)
                                                 {
-                                                    if ((string)candidateName != "Close" && (string)candidateName != "Float" && (string)candidateName != "Undo" && (string)candidateName != "Redo")
+                                                    string name = string.Empty;
+                                                    object candidateName = candidate.GetCurrentPropertyValue(UIA_PropertyIds.UIA_NamePropertyId);
+                                                    if (!candidateName.Equals(name))
                                                     {
-                                                        chosenButton = candidate;
-                                                        break;
+                                                        if ((string)candidateName != "Close" && (string)candidateName != "Float" && (string)candidateName != "Undo" && (string)candidateName != "Redo")
+                                                        {
+                                                            chosenButton = candidate;
+                                                            break;
+                                                        }
                                                     }
                                                 }
+
                                             }
-
+                                            bool enableChecker = false;
+                                            do
+                                            {
+                                                object enableValue = chosenButton.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
+                                                enableChecker = (bool)enableValue;
+                                            }
+                                            while (enableChecker == false);
                                         }
-                                        bool enableChecker = false;
-                                        do
+                                        return Task.FromResult(true);
+                                    });
+                                    await StallUntilNifskopeIsReady;
+                                    Task LoadView = Task.Run(() =>
+                                    {
+                                        IUIAutomation auto = new CUIAutomation8();
+                                        
+                                        IUIAutomationElement desktop = auto.GetRootElement();
+                                        IUIAutomationCondition processIDCond = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
+                                        IUIAutomationElement nifskope = desktop.FindFirst(TreeScope.TreeScope_Subtree, processIDCond);
+                                        IUIAutomationCondition controlType = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50002);
+                                        IUIAutomationCondition name = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_NamePropertyId, "Load View");
+                                        var andCondition = auto.CreateAndCondition(controlType, name);
+                                        IUIAutomationElement loadView = nifskope.FindFirst(TreeScope.TreeScope_Subtree, andCondition);
+
+                                        if (loadView.GetCurrentPattern(10000) != null)
                                         {
-                                            object enableValue = chosenButton.GetCurrentPropertyValue(UIA_PropertyIds.UIA_IsEnabledPropertyId);
-                                            enableChecker = (bool)enableValue;
+                                            IUIAutomationInvokePattern invoke = loadView.GetCurrentPattern(10000) as IUIAutomationInvokePattern;
+                                            invoke.Invoke();
                                         }
-                                        while (enableChecker == false);
-                                    }
-                                    return Task.FromResult(true);
-                                };
-                                Task<bool> stall = StallUntilNifskopeIsReady();
-                                await stall;
-                                Task button = AutomaticButtonPress(nifskopeProcess2);
-                                await button;
-                                
-                                Task<int> screenshot = ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
-                                completedScreenshots = await screenshot;
-                                
+                                        
+                                        return Task.CompletedTask;
+                                    });
+                                    await LoadView;
+                                    Task WaitBefore = Task.Run(() =>
+                                    {
+                                        Task.Delay(waitB4);
+                                        return Task.CompletedTask;
+                                    });
+                                    await WaitBefore;
+                                    Task<int> ScreenshotMethod = Task.Run<int>(() =>
+                                    {
+                                        try
+                                        {
+                                            Point coords = new Point(theSize.Width, theSize.Height);
+                                            Point dest = new Point(0, 0);
+                                            Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
+                                            Graphics graphicsNif = Graphics.FromImage(nif);
+                                            graphicsNif.CopyFromScreen(coords, dest, theSize);
+                                            string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
+                                            nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                                            imageList1.ImageSize = screenshot_PB.Size;
+                                            imageList1.Images.Add(nif);
+                                            completedScreenshots++;
 
-                                DateTime screenshotDone = DateTime.Now;
-                                TimeSpan screenshotTime = (screenshotDone - startTime);
-                                Task<int> CalculateRemainingScreenshots()
-                                {
-                                    int screenshotsLeft = totalScreenshots - completedScreenshots;
-                                    return Task.FromResult(screenshotsLeft) ;
-                                }
-                                Task<int> remaining = CalculateRemainingScreenshots();
-                                int screenshotsRemaining = await remaining;
-                                Task<int> TimeLeft()
-                                {
-                                    int timeLeft = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
-                                    return Task.FromResult(timeLeft);
-                                }
-                                Task<int> time = TimeLeft();
-                                int timeRemaining = await time;
-                                bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
-                                nifskopeProcess2.Kill();
+                                        }
+                                        catch (Exception f)
+                                        {
+                                            MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
+                                        }
 
+                                        return Task.FromResult(completedScreenshots);
+                                    });
+                                    await ScreenshotMethod;
+                                    Task WaitAfter = Task.Run(() =>
+                                    {
+                                        Task.Delay(waitAfter);
+                                        return Task.CompletedTask;
+                                    });
+                                    await WaitAfter;
+
+                                    DateTime screenshotDone = DateTime.Now;
+                                    TimeSpan screenshotTime = (screenshotDone - startTime);
+                                    Task<int> CalculateRemainingScreenshots = Task.Run<int>(() =>
+                                    {
+                                        int screenshotsLeft = totalScreenshots - completedScreenshots;
+                                        return Task.FromResult(screenshotsLeft);
+                                    });
+                                    int screenshotsRemaining = await CalculateRemainingScreenshots;
+
+                                    Task<int> TimeLeft = Task.Run(() =>
+                                    {
+                                        int timeLeft = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
+                                        return Task.FromResult(timeLeft);
+                                    });
+                                    int timeRemaining = await TimeLeft;
+
+                                    bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
+                                    Task t = Task.WhenAll(StallUntilNifskopeIsReady, LoadView, WaitBefore, ScreenshotMethod, WaitAfter, CalculateRemainingScreenshots, TimeLeft);
+
+                                    nifskopeProcess2.Kill();
+
+                                }
                             }
                         }
-                        else if(answer == DialogResult.No)
+                        else if (answer == DialogResult.No)
                         {
                             while (completedScreenshots != totalScreenshots)
                             {
                                 nifskopeProcess2.StartInfo.FileName = fileNames[completedScreenshots];
                                 nifskopeProcess2.Start();
-
                                 DateTime startTime = DateTime.Now;
-                                completedScreenshots = await ScreenshotMethod(theSize, fileNames, ref completedScreenshots, savePath);
+                                Task WaitBefore = Task.Delay(waitB4);
+                                await WaitBefore;
+                                Task<int> ScreenshotMethod = Task.Run<int>(() =>
+                                {
+                                    try
+                                    {
+
+
+                                        Point coords = new Point(theSize.Width, theSize.Height);
+                                        Point dest = new Point(0, 0);
+                                        Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
+                                        Graphics graphicsNif = Graphics.FromImage(nif);
+                                        graphicsNif.CopyFromScreen(coords, dest, theSize);
+                                        string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
+                                        nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                                        imageList1.ImageSize = screenshot_PB.Size;
+                                        imageList1.Images.Add(nif);
+                                        completedScreenshots++;
+                                    }
+
+                                    catch (Exception f)
+                                    {
+                                        MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
+                                    }
+
+                                    return Task.FromResult(completedScreenshots);
+                                });
+                                await ScreenshotMethod;
+                                Task WaitAfter = Task.Delay(waitAfter);
+                                await WaitAfter;
+
                                 DateTime screenshotDone = DateTime.Now;
                                 TimeSpan screenshotTime = (screenshotDone - startTime);
-                                Task<int> CalculateRemainingScreenshots()
+                                Task<int> CalculateRemainingScreenshots = Task.Run<int>(() =>
                                 {
                                     int screenshotsLeft = totalScreenshots - completedScreenshots;
                                     return Task.FromResult(screenshotsLeft);
-                                }
-                                Task<int> remaining = CalculateRemainingScreenshots();
-                                int screenshotsRemaining = await remaining;
-                                Task<int> TimeLeft()
+                                });
+                                int screenshotsRemaining = await CalculateRemainingScreenshots;
+
+                                Task<int> TimeLeft = Task.Run(() =>
                                 {
                                     int timeLeft = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
                                     return Task.FromResult(timeLeft);
-                                }
-                                Task<int> time = TimeLeft();
-                                int timeRemaining = await time;
+                                });
+                                int timeRemaining = await TimeLeft;
+
                                 bool ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
                                 nifskopeProcess2.Kill();
+
+
 
                             }
                         }
@@ -643,71 +725,7 @@ namespace ScreenShotAutoPlus
             }
         }
 
-        private Task AutomaticButtonPress(Process nifskopeProcess2)
-        {
-            IUIAutomation auto = new CUIAutomation8();
-            IUIAutomationElement desktop = auto.GetRootElement();
-            IUIAutomationCondition processIDCond = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
-            IUIAutomationElement nifskope = desktop.FindFirst(TreeScope.TreeScope_Subtree, processIDCond);
-            IUIAutomationCondition controlType = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ControlTypePropertyId, 50002);
-            IUIAutomationCondition name = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_NamePropertyId, "Load View");
-            var andCondition = auto.CreateAndCondition(controlType, name);
-            IUIAutomationElement loadView = nifskope.FindFirst(TreeScope.TreeScope_Subtree, andCondition);
 
-            if(loadView.GetCurrentPattern(10000) != null)
-            {
-                IUIAutomationInvokePattern invoke = loadView.GetCurrentPattern(10000) as IUIAutomationInvokePattern;
-                invoke.Invoke();
-            }
-            return Task.CompletedTask;
-        }
-        private Task<int> ScreenshotMethod(Size theSize, List<string> fileNames, ref int completedScreenshots, string savePath)
-        {
-            try
-            {
-                
-                if (this.InvokeRequired)
-                {
-                    DirectoryInfo dInfo = new DirectoryInfo(savePath);
-                    int completedScreenshotsLocal = dInfo.GetFiles().Count();
-                    this.Invoke((MethodInvoker)(() =>
-                    {
-
-                        Point coords = new Point(theSize.Width, theSize.Height);
-                        Point dest = new Point(0, 0);
-                        Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
-                        Graphics graphicsNif = Graphics.FromImage(nif);
-                        graphicsNif.CopyFromScreen(coords, dest, theSize);
-                        string TreeNodeNameRevised = fileNames[completedScreenshotsLocal].ToString().Replace(".nif", string.Empty);
-                        nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
-                        imageList1.ImageSize = screenshot_PB.Size;
-                        imageList1.Images.Add(nif);
-                        completedScreenshotsLocal++;
-                    }));
-                    completedScreenshots = completedScreenshotsLocal;
-                }
-                else
-                {
-                    Point coords = new Point(theSize.Width, theSize.Height);
-                    Point dest = new Point(0, 0);
-                    Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
-                    Graphics graphicsNif = Graphics.FromImage(nif);
-                    graphicsNif.CopyFromScreen(coords, dest, theSize);
-                    string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
-                    nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
-                    imageList1.ImageSize = screenshot_PB.Size;
-                    imageList1.Images.Add(nif);
-                    completedScreenshots++;
-                }
-            }
-            catch (Exception f)
-            {
-                MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
-            }
-
-            return Task.FromResult(completedScreenshots);
-        }
-        
         private bool UpdateUI(int screenshotsRemaining, int timeRemaining, int completedScreenshots)
         {
             bool invokeRequired = false;
