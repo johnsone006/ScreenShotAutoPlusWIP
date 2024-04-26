@@ -213,8 +213,8 @@ namespace ScreenShotAutoPlus
                     {
                         if (waitA >= 0 && waitB >= 0)
                         {
-                            waitA = localWaitAfter;
-                            waitB = localWaitB4;
+                            localWaitAfter = waitA;
+                            localWaitB4 = waitB;
                         }
                     }
                     else
@@ -232,9 +232,27 @@ namespace ScreenShotAutoPlus
                     return false;
                 }
                 bytesPerPixel = localBytesPerPixel;
+                waitAfter = localWaitAfter;
+                waitB4 = localWaitB4;
+            }
+            else
+            {
+                if (int.TryParse(waitAfter_TB.Text, out int waitA) == true && int.TryParse(waitB4_TB.Text, out int waitB) == true)
+                {
+                    if (waitA >= 0 && waitB >= 0)
+                    {
+                        waitAfter = waitA;
+                        waitB4 = waitB;
+                    }
+                }
+                else
+                {
+                    localValid = false;
+                }
 
-                localWaitAfter = waitAfter;
-                localWaitB4 = waitB4;
+                //Get bits per pixel.
+                int bitsPerPixel = Screen.FromControl(this).BitsPerPixel;
+                bytesPerPixel = bitsPerPixel / 8;
             }
             return true;
         }
@@ -565,7 +583,7 @@ namespace ScreenShotAutoPlus
                                     Task LoadView = Task.Run(() =>
                                     {
                                         IUIAutomation auto = new CUIAutomation8();
-                                        
+
                                         IUIAutomationElement desktop = auto.GetRootElement();
                                         IUIAutomationCondition processIDCond = auto.CreatePropertyCondition(UIA_PropertyIds.UIA_ProcessIdPropertyId, nifskopeProcess2.Id);
                                         IUIAutomationElement nifskope = desktop.FindFirst(TreeScope.TreeScope_Subtree, processIDCond);
@@ -579,7 +597,7 @@ namespace ScreenShotAutoPlus
                                             IUIAutomationInvokePattern invoke = loadView.GetCurrentPattern(10000) as IUIAutomationInvokePattern;
                                             invoke.Invoke();
                                         }
-                                        
+
                                         return Task.CompletedTask;
                                     });
                                     await LoadView;
