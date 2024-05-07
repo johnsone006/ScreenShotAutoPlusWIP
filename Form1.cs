@@ -705,23 +705,31 @@ namespace ScreenShotAutoPlus
                                     return Task.FromResult(loadViewInternal);
                                 });
                                 AutomationElement loadView = await WaitUntilNifskopeIsReadyAndGetLoadViewCheckbox;
+                                handle = nifskopeProcess2.MainWindowHandle;
                                 Task Subscribe = Task.Run(() =>
                                 {
-                                    SubscribeFocusChange(subElement);
                                     SubscribeToInvoke(subElement);
                                     SubscribePropertyChange(subElement);
                                     SubscribeToStructureChange(subElement);
+                                    TogglePattern loadViewToggleState = loadView.GetCurrentPattern(TogglePattern.Pattern) as TogglePattern;
+                                    ToggleState state = loadViewToggleState.Current.ToggleState;
+                                    while(state != ToggleState.On)
+                                    {
+                                        Task.Delay(1);
+                                        this.Invoke((MethodInvoker)(() =>
+                                        {
+                                            processStatus_LBL.Text = "Ready";
+                                        }));
+                                    }
+
                                     return Task.CompletedTask;
                                 });
                                 await Subscribe;
-                                Task LoadViewInvoke = Task.Run(() =>
+                                Task Unsubscribe = Task.Run(() =>
                                 {
-                                    Automation.AddAutomationPropertyChangedEventHandler(loadView, TreeScope.Element, LoadViewInvokeMethod, TogglePattern.ToggleStateProperty);
-                                    TogglePattern pat = loadView.GetCurrentPattern(TogglePattern.Pattern) as TogglePattern;
-                                    pat.Toggle();
+                                    Automation.RemoveAllEventHandlers();
                                 });
-                                await LoadViewInvoke;
-
+                                await Unsubscribe;
                                 completedScreenshots++;
                                 nifskopeProcess2.Kill();
                             }
@@ -737,7 +745,11 @@ namespace ScreenShotAutoPlus
         }
         private void SubscribeToStructureChange(AutomationElement element)
         {
-            Automation.AddStructureChangedEventHandler(element, TreeScope.Children, new StructureChangedEventHandler(OnStructureChange));
+            this.Invoke((MethodInvoker)(() =>
+            {
+                element = AutomationElement.FromHandle(handle);
+                Automation.AddStructureChangedEventHandler(element, TreeScope.Children, new StructureChangedEventHandler(OnStructureChange));
+            }));
         }
         private void OnStructureChange(object sender, StructureChangedEventArgs e)
         {
@@ -757,8 +769,15 @@ namespace ScreenShotAutoPlus
         }
         public void SubscribeToInvoke(AutomationElement element)
         {
-            Automation.AddAutomationEventHandler(InvokePattern.InvokedEvent, element, TreeScope.Element, handlerEvent = new AutomationEventHandler(OnUIAutomationEvent));
-            subElement = element;
+            if (InvokeRequired)
+            {
+                this.Invoke((MethodInvoker)(() =>
+                {
+
+                    AutomationElement nifskope = AutomationElement.FromHandle(Handle);
+                    Automation.AddAutomationEventHandler(InvokePattern.InvokedEvent, nifskope, TreeScope.Subtree, handlerEvent = new AutomationEventHandler(OnUIAutomationEvent));
+                }));
+            }
 
         }
         private void OnUIAutomationEvent(object src, AutomationEventArgs f)
@@ -782,7 +801,15 @@ namespace ScreenShotAutoPlus
         }
         private void SubscribePropertyChange(AutomationElement element)
         {
-            Automation.AddAutomationPropertyChangedEventHandler(element, TreeScope.Element, propertyChanged = new AutomationPropertyChangedEventHandler(OnPropertyChange), AutomationElement.OrientationProperty, AutomationElement.BoundingRectangleProperty, AutomationElement.IsEnabledProperty);
+            if (InvokeRequired)
+            {
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    AutomationElement nifskope = AutomationElement.FromHandle(handle);
+                    Automation.AddAutomationPropertyChangedEventHandler(nifskope, TreeScope.Subtree, propertyChanged = new AutomationPropertyChangedEventHandler(OnPropertyChange), AutomationElement.OrientationProperty, AutomationElement.BoundingRectangleProperty, AutomationElement.IsEnabledProperty);
+                }));
+            }
+           
         }
         private void SubscribeFocusChange(AutomationElement element)
         {
