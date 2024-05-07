@@ -42,7 +42,8 @@
             this.screenshotFiles_LB = new System.Windows.Forms.ListBox();
             this.screenshot_PB = new System.Windows.Forms.PictureBox();
             this.panel1 = new System.Windows.Forms.Panel();
-            this.buttonNames = new System.Windows.Forms.ListBox();
+            this.controlType_TB = new System.Windows.Forms.TextBox();
+            this.clickablePoint_TB = new System.Windows.Forms.TextBox();
             this.completedScreenshots_LBL = new System.Windows.Forms.Label();
             this.Exit_BTN = new System.Windows.Forms.Button();
             this.waitB4_LBL = new System.Windows.Forms.Label();
@@ -183,7 +184,8 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.buttonNames);
+            this.panel1.Controls.Add(this.controlType_TB);
+            this.panel1.Controls.Add(this.clickablePoint_TB);
             this.panel1.Controls.Add(this.completedScreenshots_LBL);
             this.panel1.Controls.Add(this.Exit_BTN);
             this.panel1.Controls.Add(this.screenshot_PB);
@@ -202,15 +204,21 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
+            this.panel1.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.panel1_PreviewKeyDown);
             // 
-            // buttonNames
+            // controlType_TB
             // 
-            this.buttonNames.FormattingEnabled = true;
-            this.buttonNames.ItemHeight = 16;
-            this.buttonNames.Location = new System.Drawing.Point(11, 287);
-            this.buttonNames.Name = "buttonNames";
-            this.buttonNames.Size = new System.Drawing.Size(197, 84);
-            this.buttonNames.TabIndex = 28;
+            this.controlType_TB.Location = new System.Drawing.Point(48, 323);
+            this.controlType_TB.Name = "controlType_TB";
+            this.controlType_TB.Size = new System.Drawing.Size(100, 22);
+            this.controlType_TB.TabIndex = 29;
+            // 
+            // clickablePoint_TB
+            // 
+            this.clickablePoint_TB.Location = new System.Drawing.Point(48, 277);
+            this.clickablePoint_TB.Name = "clickablePoint_TB";
+            this.clickablePoint_TB.Size = new System.Drawing.Size(100, 22);
+            this.clickablePoint_TB.TabIndex = 28;
             // 
             // completedScreenshots_LBL
             // 
@@ -306,7 +314,8 @@
         private System.Windows.Forms.Label completedScreenshots_LBL;
         private System.Windows.Forms.ImageList imageList1;
         private System.ComponentModel.BackgroundWorker BackgroundWorker1;
-        private System.Windows.Forms.ListBox buttonNames;
+        private System.Windows.Forms.TextBox clickablePoint_TB;
+        private System.Windows.Forms.TextBox controlType_TB;
     }
 }
 

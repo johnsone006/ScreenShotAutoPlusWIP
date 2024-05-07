@@ -18,6 +18,17 @@ using System.Windows.Automation;
 using System.Media;
 using System.Reflection;
 using System.Runtime.Remoting.Channels;
+using System.Windows.Forms.Automation;
+using System.Security.Cryptography.X509Certificates;
+using System.Runtime.Remoting.Messaging;
+using System.Data.SqlClient;
+using System.Security.Cryptography;
+using System.Windows;
+using System.Text;
+using System.Windows.Input;
+using WindowsInput;
+using WindowsInput.Native;
+
 namespace ScreenShotAutoPlus
 {
     public partial class Form1 : Form
@@ -34,15 +45,20 @@ namespace ScreenShotAutoPlus
         private bool isPaused;
         string savePath;
         string filePath;
-        IntPtr handleNifskope;
+        AutomationElement subElement;
+        AutomationEventHandler handlerEvent;
+        AutomationPropertyChangedEventHandler propertyChanged;
+        AutomationFocusChangedEventHandler focusChanged;
+        IntPtr handle;
+
         private void Form1_Load(object sender, EventArgs e)
         {
             //I have officially gotten tired of typing in my values every time I hit debug. So the next statement will only remain here until I get this program working correctly.
 
             //the rest of the code in this block is what fixed the fact that the ui tended to sometimes either overlap or be overlaped by the taskbar.
-            Size formSize = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+            System.Drawing.Size formSize = new System.Drawing.Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
             this.Size = formSize;
-            this.Location = new Point(0, 0);
+            this.Location = new System.Drawing.Point(0, 0);
         }
         private string ValidateFilePath()
         {
@@ -321,43 +337,75 @@ namespace ScreenShotAutoPlus
             int completedScreenshots = 0;
             TaskCompletionSource<bool> eventHandled = new TaskCompletionSource<bool>();
             pauseCompletionSource.SetResult(false);
-            Size theSize = new Size();
+            System.Drawing.Size theSize = new System.Drawing.Size();
             bool sufficientSpace = false;
 
             if (MakeFileLists(ref totalScreenshots, ref fileNames, ref filePaths) != false)
             {
                 if (ValidateNumbers(ref waitAfter, ref waitB4, ref bytesPerPixel) == true && ValidateSavePath(ref savePath) != null)
                 {
+                    DialogResult permission = MessageBox.Show("Keep in mind that if you have nifskope open already, someone will need to close it prior to when the progam does what it needs to do. Is it ok if the program does that for you?", "Question", MessageBoxButtons.YesNo);
+                    if (permission == DialogResult.Yes)
+                    {
+                        Task nifskopeCheck = Task.Run(() =>
+                        {
+                            List<string> processList = new List<string>();
+                            Process[] processes = Process.GetProcesses();
+                            foreach (Process process in processes)
+                            {
+                                if (process.ProcessName == "NifSkope")
+                                {
+                                    process.Kill();
+                                    break;
+                                }
+                            }
+                            return Task.CompletedTask;
+                        });
+                        await nifskopeCheck;
+                    }
+                    else
+                    {
+                        MessageBox.Show("Please close out of nifskope prior to clicking the start button again.");
+                        return;
+                    }
+
+
                     string fileInfo = new DirectoryInfo(filePath).GetFiles().OrderByDescending(file => file.Length).FirstOrDefault().FullName;
                     ProcessStartInfo startInfo = new ProcessStartInfo()
                     {
                         WindowStyle = ProcessWindowStyle.Maximized,
-
                     };
                     using (Process nifskopeProcess = new Process { StartInfo = startInfo })
                     {
-                        Point viewPortLocation = new Point();
+                        System.Drawing.Point viewPortLocation = new System.Drawing.Point();
                         nifskopeProcess.StartInfo.FileName = fileInfo;
-
                         nifskopeProcess.Start();
                         while (nifskopeProcess.MainWindowHandle == IntPtr.Zero)
                         {
-                            nifskopeProcess.WaitForInputIdle(10000);
+                            nifskopeProcess.WaitForInputIdle();
                         }
-                        Task<Point> GetViewPortPoint()
+                        Task StallUntilNifskopeIsReadyAndGetViewPortPoint = Task.Run(() =>
                         {
-                            AutomationElement rootElement = AutomationElement.FromHandle(nifskopeProcess.MainWindowHandle);
-                            PropertyCondition processIDCondition = new PropertyCondition(AutomationElement.ProcessIdProperty, nifskopeProcess.Id);
-                            PropertyCondition classNameCondition = new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon");
-                            TreeWalker walker = new TreeWalker(processIDCondition);
-                            Point viewPortPoint = new Point();
-                            AutomationElement viewPort = rootElement.FindFirst(TreeScope.Subtree, classNameCondition);
-                            System.Windows.Rect theRect = theRect = viewPort.Current.BoundingRectangle;
-                            viewPortPoint = new Point((int)theRect.Left, (int)theRect.Top);
-                            theSize = new Size((int)theRect.Width, (int)theRect.Height);
-                            return Task.FromResult(viewPortPoint);
-                        }
-                        viewPortLocation = await GetViewPortPoint();
+                            AutomationElement nifskopeWindow = AutomationElement.FromHandle(nifskopeProcess.MainWindowHandle);
+                            PropertyCondition className = new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon");
+                            AutomationElement viewPort = nifskopeWindow.FindFirst(TreeScope.Subtree, className);
+                            if (viewPort == null)
+                            {
+                                do
+                                {
+                                    viewPort = nifskopeWindow.FindFirst(TreeScope.Subtree, className);
+                                }
+                                while (viewPort == null);
+                            }
+                            string name = viewPort.Current.Name;
+                            string controlType = viewPort.Current.LocalizedControlType;
+                            string classNameIs = viewPort.Current.ClassName;
+                            System.Windows.Rect theRect = viewPort.Current.BoundingRectangle;
+                            viewPortLocation = new System.Drawing.Point((int)theRect.Left, (int)theRect.Top);
+                            theSize = new System.Drawing.Size((int)theRect.Width, (int)theRect.Height);
+                            return Task.CompletedTask;
+                        });
+                        await StallUntilNifskopeIsReadyAndGetViewPortPoint;
                         Task<bool> DetermineSpace = Task<bool>.Run<bool>(() =>
                         {
                             int bytesPerRow = 0;
@@ -424,9 +472,9 @@ namespace ScreenShotAutoPlus
                                 {
                                     this.Invoke((MethodInvoker)(() =>
                                     {
-                                        Size panel1_OS = new Size(panel1.Width, panel1.Height);
-                                        Size topPanel_OS = new Size(topPanel.Width, topPanel.Height);
-                                        Size theSizeToMatch = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                        System.Drawing.Size panel1_OS = new System.Drawing.Size(panel1.Width, panel1.Height);
+                                        System.Drawing.Size topPanel_OS = new System.Drawing.Size(topPanel.Width, topPanel.Height);
+                                        System.Drawing.Size theSizeToMatch = new System.Drawing.Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
                                         float xMultiply = viewPortLocation.X / panel1_OS.Width;
                                         float yMultiply = viewPortLocation.Y / topPanel_OS.Height;
                                         if (viewPortLocation.Y == topPanel_OS.Height)
@@ -442,12 +490,12 @@ namespace ScreenShotAutoPlus
                                                     con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
                                                     int newWidth = (int)(con.Width * xMultiply);
                                                     int newHeight = (int)(con.Height * yMultiply);
-                                                    con.Size = new Size(newWidth, newHeight);
+                                                    con.Size = new System.Drawing.Size(newWidth, newHeight);
                                                 }
                                             }
                                             int height = theSizeToMatch.Height - viewPortLocation.Y;
-                                            panel1.Size = new Size(viewPortLocation.X, height);
-                                            panel1.Location = new Point(0, viewPortLocation.Y);
+                                            panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
+                                            panel1.Location = new System.Drawing.Point(0, viewPortLocation.Y);
                                         }
                                         else
                                         {
@@ -459,11 +507,11 @@ namespace ScreenShotAutoPlus
                                                 {
                                                     con.Anchor = AnchorStyles.Top;
                                                     int newHeight = (int)(con.Height * yMultiply);
-                                                    con.Size = new Size(con.Width, newHeight);
+                                                    con.Size = new System.Drawing.Size(con.Width, newHeight);
                                                 }
                                                 topPanel.Height = viewPortLocation.Y;
                                                 int height = (topPanel_OS.Height + panel1_OS.Height) - viewPortLocation.Y;
-                                                panel1.Size = new Size(viewPortLocation.X, height);
+                                                panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
                                             }
                                             else
                                             {
@@ -473,20 +521,20 @@ namespace ScreenShotAutoPlus
                                                     con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
                                                     int newHeight = (int)(con.Height * yMultiply);
                                                     int newWidth = (int)(con.Width * xMultiply);
-                                                    con.Size = new Size(newWidth, newHeight);
+                                                    con.Size = new System.Drawing.Size(newWidth, newHeight);
                                                 }
                                                 topPanel.Height = viewPortLocation.Y;
                                                 int height = this.Height - viewPortLocation.Y;
-                                                panel1.Size = new Size(viewPortLocation.X, height);
+                                                panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
                                             }
                                         }
                                     }));
                                 }
                                 else
                                 {
-                                    Size panel1_OS = new Size(panel1.Width, panel1.Height);
-                                    Size topPanel_OS = new Size(topPanel.Width, topPanel.Height);
-                                    Size theSizeToMatch = new Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
+                                    System.Drawing.Size panel1_OS = new System.Drawing.Size(panel1.Width, panel1.Height);
+                                    System.Drawing.Size topPanel_OS = new System.Drawing.Size(topPanel.Width, topPanel.Height);
+                                    System.Drawing.Size theSizeToMatch = new System.Drawing.Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
                                     float xMultiply = viewPortLocation.X / panel1_OS.Width;
                                     float yMultiply = viewPortLocation.Y / topPanel_OS.Height;
                                     if (viewPortLocation.Y == topPanel_OS.Height)
@@ -502,12 +550,12 @@ namespace ScreenShotAutoPlus
                                                 con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
                                                 int newWidth = (int)(con.Width * xMultiply);
                                                 int newHeight = (int)(con.Height * yMultiply);
-                                                con.Size = new Size(newWidth, newHeight);
+                                                con.Size = new  System.Drawing.Size(newWidth, newHeight);
                                             }
                                         }
                                         int height = theSizeToMatch.Height - viewPortLocation.Y;
-                                        panel1.Size = new Size(viewPortLocation.X, height);
-                                        panel1.Location = new Point(0, viewPortLocation.Y);
+                                        panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
+                                        panel1.Location = new System.Drawing.Point(0, viewPortLocation.Y);
                                     }
                                     else
                                     {
@@ -519,11 +567,11 @@ namespace ScreenShotAutoPlus
                                             {
                                                 con.Anchor = AnchorStyles.Top;
                                                 int newHeight = (int)(con.Height * yMultiply);
-                                                con.Size = new Size(con.Width, newHeight);
+                                                con.Size = new System.Drawing.Size(con.Width, newHeight);
                                             }
                                             topPanel.Height = viewPortLocation.Y;
                                             int height = (topPanel_OS.Height + panel1_OS.Height) - viewPortLocation.Y;
-                                            panel1.Size = new Size(viewPortLocation.X, height);
+                                            panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
                                         }
                                         else
                                         {
@@ -533,11 +581,11 @@ namespace ScreenShotAutoPlus
                                                 con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
                                                 int newHeight = (int)(con.Height * yMultiply);
                                                 int newWidth = (int)(con.Width * xMultiply);
-                                                con.Size = new Size(newWidth, newHeight);
+                                                con.Size = new System.Drawing.Size(newWidth, newHeight);
                                             }
                                             topPanel.Height = viewPortLocation.Y;
                                             int height = this.Height - viewPortLocation.Y;
-                                            panel1.Size = new Size(viewPortLocation.X, height);
+                                            panel1.Size = new System.Drawing.Size(viewPortLocation.X, height);
                                         }
                                     }
                                 }
@@ -552,103 +600,211 @@ namespace ScreenShotAutoPlus
                         });
                         await Task.WhenAll(nifskopeProcess_Exited);
                     }//end of using statement.
-                    using (Process nifskopeProcess2 = new Process { StartInfo = startInfo })
+                    DialogResult answer = MessageBox.Show("Does the program have your permission to automatically press the Load view button for each screenshot?", "Question", MessageBoxButtons.YesNoCancel);
+                    if (answer == DialogResult.Cancel)
                     {
-                        nifskopeProcess2.StartInfo.FileName = filePaths[completedScreenshots].ToString();
-                        nifskopeProcess2.Start();
-                        Task WaitUntilNifskopeOpens = Task.Run(() =>
+                        return;
+                    }
+                    else if (answer == DialogResult.No)
+                    {
+
+                        using (Process nifskopeProcess2 = new Process { StartInfo = startInfo })
                         {
-
-                            while (nifskopeProcess2.MainWindowHandle == IntPtr.Zero)
+                            while (completedScreenshots != totalScreenshots)
                             {
-                                nifskopeProcess2.WaitForInputIdle();
-                            }
-                            return Task.CompletedTask;
-                        });
-                        await WaitUntilNifskopeOpens;
-                        handleNifskope = nifskopeProcess2.MainWindowHandle;
-                        AutomationElement loadView;
-                        Task<AutomationElement> FindLoadViewButton()
-                        {
-                            AutomationElement nifskopeWindow = AutomationElement.FromHandle(nifskopeProcess2.MainWindowHandle);
-                            PropertyCondition name = new PropertyCondition(AutomationElement.NameProperty, "Load View");
-                            AutomationElement loadViewLocal = nifskopeWindow.FindFirst(TreeScope.Subtree, name);
-                            return Task.FromResult(loadViewLocal);
-                        };
-                        loadView = await FindLoadViewButton();
-                        await WaitUntilNifskopeOpens;
-                        while (completedScreenshots != totalScreenshots)
-                        {
-
-                            Task<AutomationEventHandler> SubscribeToEvent = Task.Run<AutomationEventHandler>(() =>
-                            {
-                                AutomationEventHandler handlerInside;
-                                Automation.AddAutomationEventHandler(InvokePattern.InvokedEvent, loadView, TreeScope.Element, handlerInside = new AutomationEventHandler(OnButtonPress));
-
-                                return Task.FromResult(handlerInside);
-                            });
-                            AutomationEventHandler handler = await SubscribeToEvent;
-                            handler = SubscribeToEvent.Result;
-
-                            void OnButtonPress(Object sender2, AutomationEventArgs f)
-                            {
-                                InvokePattern invoke = loadView.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern;
-                                invoke.Invoke();
-
-                            }
-
-                            //Now we do the wait method.
-                            Task WaitBefore = Task.Delay(waitB4);
-                            Task<int> ScreenshotMethod()
-                            {
-                                try
+                                nifskopeProcess2.StartInfo.FileName = filePaths[completedScreenshots].ToString();
+                                nifskopeProcess2.Start();
+                                DateTime startTime = DateTime.Now;
+                                Task WaitUntilNifskopeOpens = Task.Run(() =>
                                 {
-                                    Point coords = new Point(theSize.Width, theSize.Height);
-                                    Point dest = new Point(0, 0);
-                                    Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
-                                    Graphics graphicsNif = Graphics.FromImage(nif);
-                                    graphicsNif.CopyFromScreen(coords, dest, theSize);
-                                    string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
-                                    nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
-                                    imageList1.ImageSize = screenshot_PB.Size;
-                                    imageList1.Images.Add(nif);
-                                    completedScreenshots++;
+                                    while (nifskopeProcess2.MainWindowHandle == IntPtr.Zero || nifskopeProcess2.MainWindowHandle == null)
+                                    {
+                                        nifskopeProcess2.WaitForInputIdle();
+                                    }
+                                });
 
-                                }
-                                catch (Exception f)
+                                await WaitUntilNifskopeOpens;
+                                handle = nifskopeProcess2.MainWindowHandle;
+                                Task WaitBefore = Task.Delay(waitB4);
+                                Task<int> ScreenshotMethod()
                                 {
-                                    MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
-                                }
+                                    try
+                                    {
+                                        System.Drawing.Point coords = new System.Drawing.Point(theSize.Width, theSize.Height);
+                                        System.Drawing.Point dest = new System.Drawing.Point(0, 0);
+                                        Bitmap nif = new Bitmap(theSize.Width, theSize.Height);
+                                        Graphics graphicsNif = Graphics.FromImage(nif);
+                                        graphicsNif.CopyFromScreen(coords, dest, theSize);
+                                        string TreeNodeNameRevised = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
+                                        nif.Save(savePath + "\\" + TreeNodeNameRevised + ".bmp", ImageFormat.Bmp);
+                                        imageList1.ImageSize = screenshot_PB.Size;
+                                        imageList1.Images.Add(nif);
+                                        completedScreenshots++;
 
-                                return Task.FromResult(completedScreenshots);
-                            };
-                            Task<int> screenshot = ScreenshotMethod();
-                            await screenshot;
-                            completedScreenshots = screenshot.Result;
-                            Task WaitAfter = Task.Delay(waitAfter);
+                                    }
+                                    catch (Exception f)
+                                    {
+                                        MessageBox.Show("Button stack trace:" + f.StackTrace + "Message" + f.Message + "Inner exception" + f.InnerException);
+                                    }
 
-                            nifskopeProcess2.Kill();
-                        }//end of while loop
+                                    return Task.FromResult(completedScreenshots);
+                                };
+                                Task<int> screenshot = ScreenshotMethod();
+                                completedScreenshots = await screenshot;
+                                Task WaitAfter = Task.Delay(waitAfter);
+                                await WaitAfter;
+                                DateTime screenshotDone = DateTime.Now;
+                                TimeSpan screenshotTime = (screenshotDone - startTime);
+                                Task<int> CalculateScreenshotsRemaining = Task.Run<int>(() =>
+                                {
+                                    int screenshotsRemainingInternal = totalScreenshots - completedScreenshots;
+                                    return Task.FromResult(screenshotsRemainingInternal);
+                                });
+                                int screenshotsRemaining = await CalculateScreenshotsRemaining;
+                                Task<int> RemainingTime = Task.Run<int>(() =>
+                                {
+                                    int timeRemainingInternal = (int)screenshotTime.TotalSeconds * screenshotsRemaining;
+                                    return Task.FromResult(timeRemainingInternal);
+                                });
+
+                                int timeRemaining = await RemainingTime;
+                                Task ui = UpdateUI(screenshotsRemaining, timeRemaining, completedScreenshots);
+                                await Task.WhenAll(ui);
+                                nifskopeProcess2.Kill();
+                            }
+                        }//End of using block
+                    }
+                    else if (answer == DialogResult.Yes)
+                    {
+                        while(completedScreenshots != totalScreenshots)
+                        {
+                            using(Process nifskopeProcess2 = new Process())
+                            {
+                                nifskopeProcess2.StartInfo.FileName = @"C:\Users\Johns\Downloads\NifSkope_2_0_2018-02-22-x64\NifSkope_2_0_2018-02-22-x64\NifSkope.exe";
+                                nifskopeProcess2.StartInfo.Arguments = filePaths[completedScreenshots];
+                                nifskopeProcess2.StartInfo.UseShellExecute = false;
+                                nifskopeProcess2.StartInfo.RedirectStandardInput = true;
+                                nifskopeProcess2.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                                nifskopeProcess2.Start();
+                                Task<AutomationElement> WaitUntilNifskopeIsReadyAndGetLoadViewCheckbox = Task.Run<AutomationElement>(() =>
+                                {
+                                    while (nifskopeProcess2.MainWindowHandle == IntPtr.Zero)
+                                    {
+                                        nifskopeProcess2.WaitForInputIdle();
+                                    }
+                                    
+                                    AutomationElement nifskopeWindowInternal = AutomationElement.FromHandle(nifskopeProcess2.MainWindowHandle);
+                                    
+                                    AutomationElement loadViewInternal = nifskopeWindowInternal.FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Load View"));
+                                    bool enabled = false;
+                                    do
+                                    {
+                                        enabled = loadViewInternal.Current.IsEnabled;
+                                    }
+                                    while (enabled == false);
+                                    return Task.FromResult(loadViewInternal);
+                                });
+                                AutomationElement loadView = await WaitUntilNifskopeIsReadyAndGetLoadViewCheckbox;
+                                Task Subscribe = Task.Run(() =>
+                                {
+                                    SubscribeFocusChange(subElement);
+                                    SubscribeToInvoke(subElement);
+                                    SubscribePropertyChange(subElement);
+                                    SubscribeToStructureChange(subElement);
+                                    return Task.CompletedTask;
+                                });
+                                await Subscribe;
+                                Task LoadViewInvoke = Task.Run(() =>
+                                {
+                                    Automation.AddAutomationPropertyChangedEventHandler(loadView, TreeScope.Element, LoadViewInvokeMethod, TogglePattern.ToggleStateProperty);
+                                    TogglePattern pat = loadView.GetCurrentPattern(TogglePattern.Pattern) as TogglePattern;
+                                    pat.Toggle();
+                                });
+                                await LoadViewInvoke;
+
+                                completedScreenshots++;
+                                nifskopeProcess2.Kill();
+                            }
+                            
+                        }
                     }
                 }
-                else
-                {//an else loop to handle if the method that holds all the number variables (except totalScreenshots) returns null
-                    MessageBox.Show($"A variety of errors could have happened here. I'll list them: 1. You did not select a folder for the files to be saved to. \n 2. You either did not enter the hex color code of the viewport of nifskope into the correct text box, or the code you did enter is not a valid hex code. \n 3. You told the program to wait less than 0 miliseconds before and/or after each screenshot (or you didn't enter in a value into those text boxes at all). \n In any case, this must be remedied prior to the program continuing.", "Error", MessageBoxButtons.OK);
-                    return;
-                }
             }
-            else
-            {//to handle when filepath is null
-                MessageBox.Show("The program needs to know where the files you want to screenshot are at before it can continue.", "Error", MessageBoxButtons.OK);
-                return;
-            }
-
-
         }//End of background worker method.
-
-        private bool UpdateUI(int screenshotsRemaining, int timeRemaining, int completedScreenshots)
+        public void LoadViewInvokeMethod(object sender, AutomationPropertyChangedEventArgs t)
         {
-            bool invokeRequired = false;
+            object newV = t.NewValue;
+        }
+        private void SubscribeToStructureChange(AutomationElement element)
+        {
+            Automation.AddStructureChangedEventHandler(element, TreeScope.Children, new StructureChangedEventHandler(OnStructureChange));
+        }
+        private void OnStructureChange(object sender, StructureChangedEventArgs e)
+        {
+            //Get the process.
+
+            object value = e.StructureChangeType;
+            int[] runtimeIDs = e.GetRuntimeId();
+            AutomationElement nifskope = AutomationElement.FromHandle(handle);
+            List<AutomationElement> things = new List<AutomationElement>();
+            foreach(int id in runtimeIDs)
+            {
+                AutomationElement theThing = nifskope.FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.RuntimeIdProperty, id));
+                things.Add(theThing);
+            }
+            
+
+        }
+        public void SubscribeToInvoke(AutomationElement element)
+        {
+            Automation.AddAutomationEventHandler(InvokePattern.InvokedEvent, element, TreeScope.Element, handlerEvent = new AutomationEventHandler(OnUIAutomationEvent));
+            subElement = element;
+
+        }
+        private void OnUIAutomationEvent(object src, AutomationEventArgs f)
+        {
+            AutomationElement sourceE; 
+            try
+            {
+                sourceE = src as AutomationElement;
+            }
+            catch
+            {
+                MessageBox.Show("Error");
+            }
+            if(f.EventId == InvokePattern.InvokedEvent)
+            {
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    processStatus_LBL.Text = "Invoked!";
+                }));
+            }
+        }
+        private void SubscribePropertyChange(AutomationElement element)
+        {
+            Automation.AddAutomationPropertyChangedEventHandler(element, TreeScope.Element, propertyChanged = new AutomationPropertyChangedEventHandler(OnPropertyChange), AutomationElement.OrientationProperty, AutomationElement.BoundingRectangleProperty, AutomationElement.IsEnabledProperty);
+        }
+        private void SubscribeFocusChange(AutomationElement element)
+        {
+            focusChanged = new AutomationFocusChangedEventHandler(OnFocusChange);
+            Automation.AddAutomationFocusChangedEventHandler(focusChanged);
+        }
+        private void OnFocusChange(object src, AutomationFocusChangedEventArgs s)
+        {
+            int id = s.ChildId;
+            this.Invoke((MethodInvoker)(() =>
+            {
+                timeLeft_LBL.Text = $"FocusChanged to {id}";
+            }));
+        }
+        private void OnPropertyChange(object src, AutomationPropertyChangedEventArgs g)
+        {
+            AutomationElement source = src as AutomationElement;
+            object property = g.Property;
+        }
+        private Task UpdateUI(int screenshotsRemaining, int timeRemaining, int completedScreenshots)
+        {
+
             if (InvokeRequired)
             {
                 BeginInvoke((Action)(() =>
@@ -656,7 +812,7 @@ namespace ScreenShotAutoPlus
                     screenshotNumber_LBL.Text = $"{screenshotsRemaining}";
                     timeLeft_LBL.Text = $"{timeRemaining:N} seconds";
                     completedScreenshots_LBL.Text = $"{completedScreenshots}";
-                    invokeRequired = true;
+
                 }));
             }
             else
@@ -664,9 +820,9 @@ namespace ScreenShotAutoPlus
                 screenshotNumber_LBL.Text = $"{screenshotsRemaining}";
                 timeLeft_LBL.Text = $"{timeRemaining:N} seconds";
                 completedScreenshots_LBL.Text = $"+{completedScreenshots}";
-                invokeRequired = false;
+
             }
-            return invokeRequired;
+            return Task.CompletedTask;
         }
         private void PauseAndPlay_BTN_Click(object sender, EventArgs e)
         {
@@ -747,6 +903,11 @@ namespace ScreenShotAutoPlus
                     Application.Exit();
                 }
             }
+
+        }
+
+        private void panel1_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
 
         }
     }
