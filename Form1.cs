@@ -9,10 +9,10 @@ using System.Linq;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows.Automation;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 
-namespace ScreenShotAutoPlus
+
+namespace ScreenShotAuto
 {
     public partial class Form1 : Form
     {
@@ -20,346 +20,355 @@ namespace ScreenShotAutoPlus
         {
             InitializeComponent();
             this.TopMost = true;
-            BackgroundWorker1.WorkerReportsProgress = false;
-            BackgroundWorker1.WorkerSupportsCancellation = false;
+            BackgroundWorker1.WorkerReportsProgress = true;
+            BackgroundWorker1.WorkerSupportsCancellation = true;
         }
-        //I do not want to have to invoke the UI  of ScreenshotAuto every time a task in the background worker do work  method needs to access either of the user specified file paths or the user specified waitB4. So...I'm storing them in member variables.
-        TaskCompletionSource<bool> pauseCompletionSource = new TaskCompletionSource<bool>();
-        string filePath;
-        string savePath;
-        int waitB4;
-        private bool isPaused;
 
+        Size screenshotSize;
+        int completedScreenshots;
         readonly List<string> fileNames = new List<string>();
+        string filePath;
         private void Form1_Load(object sender, EventArgs e)
         {
             //the rest of the code in this block is what fixed the fact that the ui tended to sometimes either overlap or be overlaped by the taskbar.
             System.Drawing.Size formSize = new System.Drawing.Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
             this.Size = formSize;
             this.Location = new System.Drawing.Point(0, 0);
+
+            Process[] candidates = Process.GetProcesses();
+            foreach (Process process in candidates)
+            {
+                if (process.ProcessName == "ScreenshotAutoPlus.exe")
+                {
+                    Process screenshotAutoProcess = Process.GetProcessById(process.Id);
+                    break;
+                }
+            }
         }
-        
+
         private void Import_BTN_Click(object sender, EventArgs e)
         {
-            this.Invoke((MethodInvoker)(() =>
+            processStatus_LBL.Text = "Waiting to process files...";
+            try
             {
-                try
+                using (FolderBrowserDialog dialogBD = new FolderBrowserDialog())
                 {
-                    using(FolderBrowserDialog dialogBD = new FolderBrowserDialog())
+                    dialogBD.Description = "Please select the folder that has the files you want to be screenshotted.";
+                    dialogBD.ShowNewFolderButton = false;
+                    dialogBD.ShowDialog();
+                    filePath_TB.Text = dialogBD.SelectedPath;
+                }
+            }
+            catch (Exception f)
+            {
+                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
+                  $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
+                  $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+            }
+            finally
+            {
+                DirectoryInfo fileInfo = new DirectoryInfo(filePath_TB.Text);
+                foreach (var file in fileInfo.GetFiles())
+                {
+                    if (file.Extension == ".nif")
                     {
-                        dialogBD.Description = "Please select the folder that has the files you want to be screenshotted.";
-                        dialogBD.ShowNewFolderButton = false;
-                        dialogBD.ShowDialog();
-                        filePath_TB.Text = dialogBD.SelectedPath;
+                        fileNames.Add(file.Name);
                     }
                 }
-                catch (Exception f)
-                {
-                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
-                      $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
-                      $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
-                }
-                finally
-                {
-                    DirectoryInfo fileInfo = new DirectoryInfo(filePath_TB.Text);
-                    foreach (var file in fileInfo.GetFiles())
-                    {
-                        if (file.Extension == ".nif")
-                        {
-                            fileNames.Add(file.Name);
-                        }
-                    }
-                }
-            }));
+            }
+            processStatus_LBL.Text = "Files processed!";
+
         }
         private void Save_FolderBTN_Click(object sender, EventArgs e)
         {
+            try
+            {
+                using (FolderBrowserDialog fBD = new FolderBrowserDialog())
+                {
+                    fBD.Description = "Please select the folder that you want all the screenshots to be saved to.";
+                    fBD.ShowNewFolderButton = false;
+                    fBD.ShowDialog();
+                    savePath_TB.Text = fBD.SelectedPath;
+                }
+            }
+            catch (Exception f)
+            {
+                MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
+                   $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
+                   $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+            }
+        }
+        private void NifSkopeFP_BTN_Click(object sender, EventArgs e)
+        {
+            using (FolderBrowserDialog nifskopeDialog = new FolderBrowserDialog())
+            {
+                nifskopeDialog.Description = "Please navigate to and select the folder that contains the executable file of the version of nifskope you want to use";
+                nifskopeDialog.ShowDialog();
+                nifskopeFilePath_TB.Text = nifskopeDialog.SelectedPath;
+            }
+        }
+        private bool StoreUserInputInClassVariables(ref int waitB4, ref string savePath, ref string nifskopePath)
+        {
+  
+            string localSavePath = null;
+            string localNifSkopePath = null;
+            int localWait = 0;
+            bool waitValueIsAcceptableInteger = true;
             this.Invoke((MethodInvoker)(() =>
             {
-                try
+               
+                localSavePath = savePath_TB.Text;
+                localNifSkopePath = string.Join("\\", nifskopeFilePath_TB.Text, "NifSkope.exe");
+                if (int.TryParse(waitB4_TB.Text, out localWait) == false || localWait < 0 || filePath_TB.TextLength ==0 || savePath_TB.TextLength == 0 || nifskopeFilePath_TB.TextLength == 0)
                 {
-                    using (FolderBrowserDialog fBD = new FolderBrowserDialog())
-                    {
-                        fBD.Description = "Please select the folder that you want all the screenshots to be saved to.";
-                        fBD.ShowNewFolderButton = false;
-                        fBD.ShowDialog();
-                        savePath_TB.Text = fBD.SelectedPath;
-                    }
-                }
-                catch (Exception f)
-                {
-                    MessageBox.Show($"Data: {f.Data}\n HResult: + {f.HResult} \n helplink: {f.HelpLink}\n + InnerException: " +
-                       $"{f.InnerException}\n + Message: {f.Message}\n +Source: {f.Source}\n + StackTrace: {f.StackTrace}\n + " +
-                       $"TargetSite: {f.TargetSite}", "Error", MessageBoxButtons.OK);
+                    waitValueIsAcceptableInteger = false;
+                    MessageBox.Show("Prior to starting the screenshot process, you must input a number that is equal to or greater than 0 in the first. Also, now is a good time to verify that you have already chosen two file paths. If you did, there will be text in the next two textboxes.");
                 }
             }));
-        }
-        private bool StoreUserInputInClassVariables()
-        {
-            if (int.TryParse(waitB4_TB.Text, out int wait) == true && filePath_TB.TextLength != 0 && savePath_TB.TextLength != 0)
+            if(waitValueIsAcceptableInteger == true)
             {
+    
                 filePath = filePath_TB.Text;
-                savePath = savePath_TB.Text;
-                waitB4 = wait;
+                savePath = localSavePath;
+                nifskopePath = localNifSkopePath;
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            
+            return false;
+            
         }
-        private void Start_BTN_Click(object sender, EventArgs e)
+        private void PrepProcess_BTN_Click(object sender, EventArgs e)
         {
-            if(StoreUserInputInClassVariables() == false)
+           
+            if (filePath_TB.TextLength == 0 || savePath_TB.TextLength == 0)
             {
-                MessageBox.Show("Prior to starting, you must select a folder that contains the files to be screenshotted, a folder for files to be saved (not the same folder!) && the wait time must be equal to or greater than 0.");
+                MessageBox.Show("Before ScreenshotAuto starts to prepare for the screenshot process, you must choose two file  paths: one that has the files to be screeenshotted, and one to save the screenshots to.");
                 return;
             }
-            if (BackgroundWorker1.IsBusy != true)
+            using (Process prepProcess = new Process())
             {
-                BackgroundWorker1.RunWorkerAsync();
-            }
-        }
-        private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
-        {
-            pauseCompletionSource.SetResult(false);
-            System.Drawing.Size theSizeOfScreenshots = new System.Drawing.Size();
-            bool sufficientSpace = true;
-            Task<int> CountScreenshots = Task.Run<int>(() =>
-            {
-                int totalScreenshotsLocal = fileNames.Count;
-                return totalScreenshotsLocal;
-            });
-            int totalScreenshots = await CountScreenshots;
-            //Open initial window to use to make sure the visible part of the ui of Screenshot Auto won't overlap the viewport once the screenshots have started being taken.
-            AutomationElement mainWindowOfNifskope = null;
-            using (Process initialProcess = new Process())
-            {
-                Task openNifSkopeInitially = Task.Run(() =>
+          
+                int totalScreenshots = fileNames.Count;
+                AutomationElement OpenNifskope()
                 {
-                    initialProcess.StartInfo.FileName = filePath + "\\" + fileNames[0];
-                    initialProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
-                    initialProcess.Start();
-                    //Make sure that NifSkope has loaded enough to have a main window handle.
-                    while (initialProcess.MainWindowHandle == IntPtr.Zero)
+
+                    prepProcess.StartInfo.FileName = filePath_TB.Text + "\\" + fileNames[0];
+                    prepProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                    prepProcess.Start();
+                
+
+                    while (prepProcess.MainWindowHandle == IntPtr.Zero)
                     {
-                        initialProcess.WaitForInputIdle();
+                        prepProcess.WaitForInputIdle();
                     }
-                    //also make sure that Nifskope has actually loaded the file.
-                    AutomationElement elementThatWillNotBeEnabledUntilNifSkopeLoadsTheFile = AutomationElement.FromHandle(initialProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Save View"));
+                    AutomationElement nifskopeWindow = AutomationElement.FromHandle(prepProcess.MainWindowHandle);
+                    //also make sure that nifskope is actually completely loaded.
+                    AutomationElement elementThatWillBeUnenabledUntilTheNifFileLoads = AutomationElement.FromHandle(prepProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Save View"));
                     bool enabled = false;
                     do
                     {
-                        enabled = elementThatWillNotBeEnabledUntilNifSkopeLoadsTheFile.Current.IsEnabled;
+                        enabled = elementThatWillBeUnenabledUntilTheNifFileLoads.Current.IsEnabled;
                     }
                     while (enabled == false);
-                    return Task.CompletedTask;
-                });
-                await openNifSkopeInitially;
-                mainWindowOfNifskope = AutomationElement.FromHandle(initialProcess.MainWindowHandle);
-                //Get the viewport size and location.
-                Task<System.Windows.Rect> GetViewPortInfo = Task.Run<System.Windows.Rect>(() =>
+                    return nifskopeWindow;
+                }
+                AutomationElement mainWindow = OpenNifskope();
+                System.Windows.Rect GetViewPortInfo()
                 {
-                    AutomationElement viewPortToReturn = mainWindowOfNifskope.FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon"));
-                    System.Windows.Rect theRectangleOfTheViewPort = viewPortToReturn.Current.BoundingRectangle;
-                    theSizeOfScreenshots = new System.Drawing.Size((int)theRectangleOfTheViewPort.Width, (int)theRectangleOfTheViewPort.Height);
-                    //Nifskope converts the bounding rectangle values to doubles
-
-                    return theRectangleOfTheViewPort;
-                });
-                System.Windows.Rect viewPortRect = await GetViewPortInfo;
-                Task<bool> EnsureUserHasEnoughMemoryForScreenshots = Task.Run<bool>(() =>
+                    AutomationElement viewport = mainWindow.FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon"));
+                    System.Windows.Rect viewportRectangle = viewport.Current.BoundingRectangle;
+                    screenshotSize = new Size((int)viewportRectangle.Width, (int)viewportRectangle.Height);
+                    return viewportRectangle;
+                }
+                System.Windows.Rect viewportRect = GetViewPortInfo();
+                bool EnsureSufficientMemory()
                 {
-                    bool localSufficientSpace;
-
-                    this.Invoke((MethodInvoker)(() =>
+                    int bitsPerPixel = Screen.FromControl(this).BitsPerPixel;
+                    double totalBitsPerScreenshot = (screenshotSize.Width * bitsPerPixel) + (screenshotSize.Height * bitsPerPixel);
+                    double totalMegabytesPerScreenshot = totalBitsPerScreenshot / 0.00000125;
+                    DriveInfo computerMemory = new DriveInfo(Path.GetPathRoot(savePath_TB.Text));
+                    double spaceAvailableInMegabytes = computerMemory.AvailableFreeSpace / 0.000001;
+                    double totalSpaceRequired = totalScreenshots * totalMegabytesPerScreenshot;
+                    if (spaceAvailableInMegabytes < totalSpaceRequired)
                     {
-
-                        int bitsPerPixel = Screen.FromControl(this).BitsPerPixel;
-                        double totalBitsPerScreenshot = (theSizeOfScreenshots.Width * bitsPerPixel) + (theSizeOfScreenshots.Height * bitsPerPixel);
-                        double totalMegaBytesPerScreenshot = totalBitsPerScreenshot / 0.00000125;
-                        string driveRoot = Path.GetPathRoot(savePath_TB.Text);
-                        DriveInfo driveInfo = new DriveInfo(driveRoot);
-                        double spaceAvailableInBytes = driveInfo.TotalFreeSpace;
-                        double spaceAvailableInMegabytes = spaceAvailableInBytes / 0.000001;
-                        double totalSpaceRequired = totalScreenshots * totalMegaBytesPerScreenshot;
-                        if (spaceAvailableInMegabytes < totalSpaceRequired)
-                        {
-                            double additionalSpaceNeededInMegaBytes = totalSpaceRequired - spaceAvailableInMegabytes;
-                            MessageBox.Show($"It looks like you do not have enough memory to save that many screenshots. You need {additionalSpaceNeededInMegaBytes} more megabytes worth of space.");
-                            localSufficientSpace = false;
-                            sufficientSpace = localSufficientSpace;
-                        }
-
-                    }));
-
-                    return Task.FromResult(sufficientSpace);
-                });
-                sufficientSpace = await EnsureUserHasEnoughMemoryForScreenshots;
-                Task MakeSureUIDoesNotOverlapViewPort = Task.Run(() =>
-                {
-                    this.Invoke((MethodInvoker)(() =>
-                    {
-                        int sidePanelRight = panel1.Bounds.Right;
-
-                        if (sidePanelRight >= viewPortRect.Left)
-                        {
-                            double xValueToMultiply = viewPortRect.X / panel1.Width;
-                            //Resize child controls of panel first.
-                            foreach (Control con in panel1.Controls)
-                            {
-                                con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
-                                int newWidth = (int)(con.Width * xValueToMultiply);
-                                con.Size = new System.Drawing.Size(newWidth, con.Height);
-                            }
-                            int newWidthOfPanel = (int)viewPortRect.Left;
-                            panel1.Size = new System.Drawing.Size(newWidthOfPanel, panel1.Height);
-                        }
-                    }));
-                    //If user complain about the side panel of Screenshot auto overlapping the top tool bar, the most recent commmit in the git repo that fixes that was posted on 5/6/2024. The 28th commit.
-                    return Task.CompletedTask;
-                });
-                Task exitNifSkope = Task.Run(() =>
-                {
-                    initialProcess.Kill();
-                    return Task.CompletedTask;
-
-                });
-                await Task.WhenAll(exitNifSkope);
-            }//End of first using block.
-            if (sufficientSpace == false)
-                {
+                        double additionalMemoryNeeded = totalSpaceRequired - spaceAvailableInMegabytes;
+                        MessageBox.Show($"It looks like you do not have enough memory to save that many screenshots. You need {additionalMemoryNeeded} more megabytes worth of space. Please fix this prior to pressing the start button.");
+                        return false;
+                    }
+                    return true;
+                }
+                if (EnsureSufficientMemory() == false)
                     return;
-                }
-                else
+                void MakeSureUiOfScreenshotAutoDoesNotOverlapViewport()
                 {
-                    
-                using (Process nifskopeScreenshotProcess = new Process())
-                {
-                    //I want the ui of this program to report the total time remaining as accurately as possible. So I've divided the process into three time intervals: the screenshot time, the calculate time, and the update ui time. You'll see.
-                    int completedScreenshots = 0;
-                    while (completedScreenshots != totalScreenshots)
+                    int sidePanelRightSideCoordinate = panel1.Bounds.Right;
+                    int topPanelBottomCoordinate = topPanel.Bounds.Bottom;
+
+                    if (sidePanelRightSideCoordinate > viewportRect.Left)
                     {
-                        DateTime screenshotStartTime = DateTime.Now;
-                        Task OpenNifSkope = Task.Run(() =>
+                        double numberToMultiplyByWidthOfControls = viewportRect.X / panel1.Width;
+                        foreach (Control con in panel1.Controls)
                         {
-                            nifskopeScreenshotProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
-                            nifskopeScreenshotProcess.StartInfo.FileName = filePath + "\\" + fileNames[completedScreenshots];
-                            nifskopeScreenshotProcess.Start();
-                            //Wait for nifskope to have a mainwindow handle that is not a bunch of zeros.
-                            while (nifskopeScreenshotProcess.MainWindowHandle == IntPtr.Zero)
-                            {
-                                Task.Delay(1);
-                            }
-                            //Make sure that this task does not return until the nif has actually loaded.
-                            AutomationElement anElementOfTheUiOfNifSkopeThatWillNotBeEnabledUntilNifSkopeHasLoadedTheFile = AutomationElement.FromHandle(nifskopeScreenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Save View"));
-                            bool isEnabled = false;
-                            do
-                            {
-                                isEnabled = anElementOfTheUiOfNifSkopeThatWillNotBeEnabledUntilNifSkopeHasLoadedTheFile.Current.IsEnabled;
-                            }
-                            while (isEnabled == false);
-                            return Task.CompletedTask;
-                        });
-                        await OpenNifSkope;
-                        await Task.Run(() => nifskopeScreenshotProcess.WaitForInputIdle(waitB4));
-                        Task<Bitmap> TakeScreenshot = Task.Run<Bitmap>(() =>
-                        {
-                            AutomationElement viewportElement = AutomationElement.FromHandle(nifskopeScreenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon"));
-                            System.Windows.Rect rectangleOfViewport = viewportElement.Current.BoundingRectangle;
-                            System.Drawing.Point upperLeftOfScreenshotArea = new System.Drawing.Point((int)rectangleOfViewport.Left, (int)rectangleOfViewport.Top);
-                            System.Drawing.Point destinationOfScreenshot = new System.Drawing.Point(0, 0);
-                            Bitmap screenshotOfNif = new Bitmap(theSizeOfScreenshots.Width, theSizeOfScreenshots.Height);
-                            Graphics theGraphicsOfTheScreenshot = Graphics.FromImage(screenshotOfNif);
-                            theGraphicsOfTheScreenshot.CopyFromScreen(upperLeftOfScreenshotArea, destinationOfScreenshot, theSizeOfScreenshots);
-                            return screenshotOfNif;
-                        });
-                        Bitmap theScreenshot = await TakeScreenshot;
-                        Task<int> SaveScreenshot = Task.Run<int>(() =>
-                        {
-                            int localScreenshotCount = completedScreenshots;
-                            string screenshotName = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
-                            theScreenshot.Save(savePath + "\'" + screenshotName);
-                            localScreenshotCount++;
-                            return localScreenshotCount;
-                        });
-                        completedScreenshots = await SaveScreenshot;
-                        await Task.Run(() => theScreenshot.Dispose());
-                        await Task.Run(() => nifskopeScreenshotProcess.Kill());
-                        DateTime screenshotDone = DateTime.Now;
-                        DateTime calculateTimeStart = DateTime.Now;
-                        Task<int> calculateRemainingScreenshots = Task.Run<int>(() =>
-                        {
-                            int remainingScreenshotsIntegerToReturn = totalScreenshots - completedScreenshots;
-                            return remainingScreenshotsIntegerToReturn;
-                        });
-                        int screenshotsRemaining = calculateRemainingScreenshots.Result;
-                        DateTime calculateTimeDone = DateTime.Now;
-                        DateTime updateUIStart = DateTime.Now;
-                        Task UpdateUi = Task.Run(() =>
-                        {
-                            this.Invoke((MethodInvoker)(() =>
-                            {
-                                screenshotNumber_LBL.Text = $"{screenshotsRemaining}";
-                            }));
-                        });
-                        DateTime updateUIEnd = DateTime.Now;
-                        Stopwatch stopWatchForCalculatingTimeSpans = Stopwatch.StartNew();
-                        Task<double> CalculateAndAddUpTimeSpans = Task.Run<double>(() =>
-                        {
-                            double screenshotTime = (screenshotDone - screenshotStartTime).TotalMilliseconds * screenshotsRemaining;
-                            double calculateTime = (calculateTimeDone - calculateTimeStart).TotalMilliseconds;
-                            double updateUITime = 2 * (updateUIEnd - updateUIStart).TotalMilliseconds;
-                            //i multiplied that by two to account for the amount of time it'll take to update the ui with the time remaining.
-                            double totalOveralTime = screenshotTime + calculateTime + updateUITime;
-                            return totalOveralTime;
-                        });
-                        double totalOverallTimeInMilliseconds = await CalculateAndAddUpTimeSpans;
-                        Task<string> FormatTimeSpan = Task.Run<string>(() =>
-                        {
-                            stopWatchForCalculatingTimeSpans.Stop();
-                            double doubleMilliseconds = totalOverallTimeInMilliseconds + stopWatchForCalculatingTimeSpans.ElapsedMilliseconds;
-                            TimeSpan timeSpanInMilliseconds = TimeSpan.FromMilliseconds(doubleMilliseconds);
-                            double days = (int)timeSpanInMilliseconds.Days;
-                            double hours = (int)timeSpanInMilliseconds.Hours;
-                            double minutes = (int)timeSpanInMilliseconds.Minutes;
-                            double seconds = (int)timeSpanInMilliseconds.Seconds;
-                            double milliseconds = (int)timeSpanInMilliseconds.Milliseconds;
-                            string formmattedTimeSpan = days.ToString() + ":" + hours.ToString() + ":" + minutes.ToString() + ":" + seconds.ToString() + ":" + milliseconds.ToString();
-                            return formmattedTimeSpan;
-                        });
-                        string timeSpan = await FormatTimeSpan;
+                            con.Anchor = AnchorStyles.Left & AnchorStyles.Top;
+                            int newWidth = (int)(con.Width * numberToMultiplyByWidthOfControls);
+                            con.Size = new Size(newWidth, con.Height);
+                        }
+                        int newWidthOfPanel = (int)viewportRect.Left;
+                        panel1.Size = new Size(newWidthOfPanel, panel1.Height);
 
-                        Task updateUIWithRemainingTime = Task.Run(() =>
-                        {
-                            this.Invoke((MethodInvoker)(() =>
-                            {
-                                timeLeft_LBL.Text = "Approximately " + timeSpan;
-                            }));
-                        });
-                    }//end of while loop.
+                    }
                 }
-                
-            }//end of second using block.
-        }//End of background worker method.
-        private void PauseAndPlay_BTN_Click(object sender, EventArgs e)
+                MakeSureUiOfScreenshotAutoDoesNotOverlapViewport();
+                prepProcess.Kill();
+            }
+        }
+        private void StartBTN_Click(object sender, EventArgs e)
         {
+            BackgroundWorker1.RunWorkerAsync();
+        }
 
-            isPaused = !isPaused;
-            if (isPaused)
+        private void CancelBackgroundOperation_BTN_Click(object sender, EventArgs e)
+        {
+            BackgroundWorker1.CancelAsync();
+        }
+        private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+            string savePath = null;
+      
+            string nifskopePath = null;
+            int waitB4 = 0;
+            if (StoreUserInputInClassVariables(ref waitB4, ref savePath, ref nifskopePath) == false)
+                return;
+      
+            int totalScreenshots = fileNames.Count;
+            
+
+            Stopwatch screenshotStopWatch = new Stopwatch();
+            Stopwatch uiStopWatch = new Stopwatch();
+            Stopwatch calculateStopWatch = new Stopwatch();
+            using (Process screenshotProcess = new Process())
             {
-                processStatus_LBL.Text = "Paused";
-                pauseCompletionSource = new TaskCompletionSource<bool>();
-            }
-            else
-            {
-                processStatus_LBL.Text = "Screenshotting;";
-                pauseCompletionSource.TrySetResult(false);
-            }
-        }     
+
+                screenshotProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                screenshotProcess.StartInfo.FileName = nifskopePath;
+
+                screenshotProcess.Start();
+                while (totalScreenshots != completedScreenshots)
+                {
+                    screenshotStopWatch.Start();
+                    screenshotProcess.StartInfo.Arguments = filePath + "\\" + fileNames[completedScreenshots].ToString();
+
+
+                    Task OpenNifskope = Task.Run(() =>
+                    {
+                        while(screenshotProcess.MainWindowHandle == IntPtr.Zero)
+                        {
+                            screenshotProcess.WaitForInputIdle();
+                        }
+                        AutomationElement elementThatWillNotBeEnabledUntilFileLoads = AutomationElement.FromHandle(screenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Save View"));
+                        bool enabled = false;
+                        do
+                        {
+                            enabled = elementThatWillNotBeEnabledUntilFileLoads.Current.IsEnabled;
+                        }
+                        while (enabled == false);
+                        return Task.CompletedTask;
+                    });
+                    await OpenNifskope;
+                    await Task.Run(() => screenshotProcess.WaitForInputIdle(waitB4));
+                    Task<Bitmap> ScreenshotNifskope = Task.Run<Bitmap>(() =>
+                    {
+                        AutomationElement viewportElement = AutomationElement.FromHandle(screenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon"));
+                        System.Windows.Rect rectangleOfViewport = viewportElement.Current.BoundingRectangle;
+                        System.Drawing.Point upperLeftOfScreenshotArea = new System.Drawing.Point((int)rectangleOfViewport.Left, (int)rectangleOfViewport.Top);
+                        System.Drawing.Point destinationOfScreenshot = new System.Drawing.Point(0, 0);
+                        Bitmap screenshotOfNif = new Bitmap(screenshotSize.Width, screenshotSize.Height);
+                        Graphics theGraphicsOfTheScreenshot = Graphics.FromImage(screenshotOfNif);
+                        theGraphicsOfTheScreenshot.CopyFromScreen(upperLeftOfScreenshotArea, destinationOfScreenshot, screenshotSize);
+                        return Task.FromResult(screenshotOfNif);
+                    });
+                    Bitmap theScreenshot = await ScreenshotNifskope;
+                    Task<int> SaveScreenshot = Task.Run<int>(() =>
+                    {
+                        int completedScreenshotsToReturn = completedScreenshots;
+                        string screenshotName = fileNames[completedScreenshots].ToString().Replace(".nif", string.Empty);
+                        theScreenshot.Save(filePath + "\\" + fileNames[completedScreenshots]);
+                        completedScreenshotsToReturn++;
+                        return completedScreenshotsToReturn;
+                    });
+                    completedScreenshots = await SaveScreenshot;
+                    theScreenshot.Dispose();
+                    Task<int> CalculateScreenshotsRemaining = Task.Run<int>(() =>
+                    {
+                        int screenshotsRemainingToReturn = totalScreenshots - completedScreenshots;
+                        return screenshotsRemainingToReturn;
+                    });
+                    int remainingScreenshots = await CalculateScreenshotsRemaining;
+                    screenshotStopWatch.Stop();
+                    //I stopped the timer here because I'm going to start a new one to time the first method that updates the ui. Reason being is that I'm assuming the second method to update the ui will take approximately as long as the first, so by multiplying the number I'll get a time span that equals the execution time of both combined.
+                    await Task.Run(() => uiStopWatch.Start());
+                    Task UpdateUiWithScreenshotsRemaining = Task.Run(() =>
+                    {
+
+                        this.Invoke((MethodInvoker)(() =>
+                        {
+                            screenshotNumber_LBL.Text = "Screenshots remaining:" + remainingScreenshots;
+                        }));
+                        return Task.CompletedTask;
+                    });
+                    await Task.Run(() => uiStopWatch.Stop());
+                    await Task.Run(() => calculateStopWatch.Start());
+                    Task<double> CalculateTimePart1 = Task.Run<double>(() =>
+                    {
+                        double timeInMilliseconds = screenshotStopWatch.ElapsedMilliseconds + (uiStopWatch.ElapsedMilliseconds * 2);
+                        TimeSpan timeSpanInMilliseconds = TimeSpan.FromMilliseconds(timeInMilliseconds);
+                        double days = (int)timeSpanInMilliseconds.Days;
+                        double hours = (int)timeSpanInMilliseconds.Hours;
+                        double minutes = (int)timeSpanInMilliseconds.Minutes;
+                        double seconds = (int)timeSpanInMilliseconds.Seconds;
+                        double millisecondsTS = (int)timeSpanInMilliseconds.Milliseconds;
+                        string incompleteTimeSpan = days.ToString() + ":" + hours.ToString() + ":" + minutes.ToString() + ":" + seconds.ToString() + ":" + millisecondsTS.ToString();
+                        return timeInMilliseconds;
+                    });
+                    double milliseconds = await CalculateTimePart1;
+                    await Task.Run(() => calculateStopWatch.Stop());
+                    Task UpdateUI = Task.Run(() =>
+                    {
+                        double totalTimeForOneScreenshot = (calculateStopWatch.ElapsedMilliseconds * 2) + milliseconds + 1000;
+                        double totalTime = totalTimeForOneScreenshot * remainingScreenshots;
+                        TimeSpan span = TimeSpan.FromMilliseconds(totalTime);
+                        double days = (int)span.Days;
+                        double hours = (int)span.Hours;
+                        double minutes = (int)span.Minutes;
+                        double seconds = (int)span.Seconds;
+                        double mS = (int)span.Milliseconds;
+                        string totalTimeString = string.Join(":", days, hours, minutes, seconds, mS);
+                        this.Invoke((MethodInvoker)(() =>
+                        {
+                            timeLeft_LBL.Text = "Approximately" + totalTimeString;
+                        }));
+                        Task.Delay(1000);
+                        return Task.CompletedTask;
+                    });
+                    await UpdateUI;
+                    await Task.Run(() =>
+                    {
+                        screenshotStopWatch.Reset();
+                        uiStopWatch.Reset();
+                        calculateStopWatch.Reset();
+                    });
+                }//end of while loop for completed screenshots.
+            }//end of using loop
+        }//End of background worker method.
+
+    
+            
         private void Exit_BTN_Click(object sender, EventArgs e)
         {
+            BackgroundWorker1.Dispose();
             Application.Exit();
         }
+
+
     }
 }
