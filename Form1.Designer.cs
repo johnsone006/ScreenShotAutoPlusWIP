@@ -35,8 +35,7 @@
             this.screenshotNumber_LBL = new System.Windows.Forms.Label();
             this.timeLeft_LBL = new System.Windows.Forms.Label();
             this.panel1 = new System.Windows.Forms.Panel();
-            this.nifskopeFilePath_TB = new System.Windows.Forms.TextBox();
-            this.NifSkopeFP_BTN = new System.Windows.Forms.Button();
+            this.screenshotProcess_ProgressBar = new System.Windows.Forms.ProgressBar();
             this.StartBTN = new System.Windows.Forms.Button();
             this.Save_FolderBTN = new System.Windows.Forms.Button();
             this.filePath_TB = new System.Windows.Forms.TextBox();
@@ -44,9 +43,9 @@
             this.completedScreenshots_LBL = new System.Windows.Forms.Label();
             this.Exit_BTN = new System.Windows.Forms.Button();
             this.waitB4_LBL = new System.Windows.Forms.Label();
-            this.waitB4_TB = new System.Windows.Forms.TextBox();
-            this.BackgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.CancelBackgroundOperation_BTN = new System.Windows.Forms.Button();
+            this.waitB4_TB = new System.Windows.Forms.TextBox();
+            this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -112,8 +111,7 @@
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.SystemColors.Control;
-            this.panel1.Controls.Add(this.nifskopeFilePath_TB);
-            this.panel1.Controls.Add(this.NifSkopeFP_BTN);
+            this.panel1.Controls.Add(this.screenshotProcess_ProgressBar);
             this.panel1.Controls.Add(this.StartBTN);
             this.panel1.Controls.Add(this.Save_FolderBTN);
             this.panel1.Controls.Add(this.filePath_TB);
@@ -133,23 +131,12 @@
             this.panel1.Size = new System.Drawing.Size(236, 949);
             this.panel1.TabIndex = 21;
             // 
-            // nifskopeFilePath_TB
+            // screenshotProcess_ProgressBar
             // 
-            this.nifskopeFilePath_TB.Location = new System.Drawing.Point(60, 170);
-            this.nifskopeFilePath_TB.Name = "nifskopeFilePath_TB";
-            this.nifskopeFilePath_TB.ReadOnly = true;
-            this.nifskopeFilePath_TB.Size = new System.Drawing.Size(78, 22);
-            this.nifskopeFilePath_TB.TabIndex = 34;
-            // 
-            // NifSkopeFP_BTN
-            // 
-            this.NifSkopeFP_BTN.Location = new System.Drawing.Point(22, 129);
-            this.NifSkopeFP_BTN.Name = "NifSkopeFP_BTN";
-            this.NifSkopeFP_BTN.Size = new System.Drawing.Size(161, 23);
-            this.NifSkopeFP_BTN.TabIndex = 33;
-            this.NifSkopeFP_BTN.Text = "Get file path for nifskope";
-            this.NifSkopeFP_BTN.UseVisualStyleBackColor = true;
-            this.NifSkopeFP_BTN.Click += new System.EventHandler(this.NifSkopeFP_BTN_Click);
+            this.screenshotProcess_ProgressBar.Location = new System.Drawing.Point(52, 561);
+            this.screenshotProcess_ProgressBar.Name = "screenshotProcess_ProgressBar";
+            this.screenshotProcess_ProgressBar.Size = new System.Drawing.Size(100, 23);
+            this.screenshotProcess_ProgressBar.TabIndex = 35;
             // 
             // StartBTN
             // 
@@ -218,22 +205,6 @@
             this.waitB4_LBL.Text = "Millisecond pause prior to each screenshot :";
             this.waitB4_LBL.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // waitB4_TB
-            // 
-            this.waitB4_TB.AccessibleDescription = "Type in the number of miliseconds you want the program to wait prior to each scre" +
-    "enshot here.";
-            this.waitB4_TB.AccessibleName = "Milisecond wait before each screenshot text box.";
-            this.waitB4_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
-            this.waitB4_TB.Location = new System.Drawing.Point(57, 62);
-            this.waitB4_TB.Name = "waitB4_TB";
-            this.waitB4_TB.Size = new System.Drawing.Size(100, 22);
-            this.waitB4_TB.TabIndex = 1;
-            this.waitB4_TB.WordWrap = false;
-            // 
-            // BackgroundWorker1
-            // 
-            this.BackgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BackgroundWorker1_DoWork);
-            // 
             // CancelBackgroundOperation_BTN
             // 
             this.CancelBackgroundOperation_BTN.AccessibleDescription = "Push this button if you want to cancel. Don\'t worry, you can restart the process " +
@@ -248,6 +219,24 @@
             this.CancelBackgroundOperation_BTN.Text = "Cancel";
             this.CancelBackgroundOperation_BTN.UseVisualStyleBackColor = true;
             this.CancelBackgroundOperation_BTN.Click += new System.EventHandler(this.CancelBackgroundOperation_BTN_Click);
+            // 
+            // waitB4_TB
+            // 
+            this.waitB4_TB.AccessibleDescription = "Type in the number of miliseconds you want the program to wait prior to each scre" +
+    "enshot here.";
+            this.waitB4_TB.AccessibleName = "Milisecond wait before each screenshot text box.";
+            this.waitB4_TB.AccessibleRole = System.Windows.Forms.AccessibleRole.Text;
+            this.waitB4_TB.Location = new System.Drawing.Point(57, 62);
+            this.waitB4_TB.Name = "waitB4_TB";
+            this.waitB4_TB.Size = new System.Drawing.Size(100, 22);
+            this.waitB4_TB.TabIndex = 1;
+            this.waitB4_TB.WordWrap = false;
+            // 
+            // backgroundWorker1
+            // 
+            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.BackgroundWorker1_DoWork);
+            this.backgroundWorker1.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.BackgroundWorker1_ProgressChanged);
+            this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.BackgroundWorker1_RunWorkerCompleted);
             // 
             // Form1
             // 
@@ -284,16 +273,15 @@
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button Exit_BTN;
         private System.Windows.Forms.Label completedScreenshots_LBL;
-        private System.ComponentModel.BackgroundWorker BackgroundWorker1;
+        private System.ComponentModel.BackgroundWorker backgroundWorker1;
         private System.Windows.Forms.TextBox savePath_TB;
         private System.Windows.Forms.Label waitB4_LBL;
         private System.Windows.Forms.TextBox waitB4_TB;
         private System.Windows.Forms.TextBox filePath_TB;
         private System.Windows.Forms.Button Save_FolderBTN;
         private System.Windows.Forms.Button StartBTN;
-        private System.Windows.Forms.Button NifSkopeFP_BTN;
-        private System.Windows.Forms.TextBox nifskopeFilePath_TB;
         private System.Windows.Forms.Button CancelBackgroundOperation_BTN;
+        private System.Windows.Forms.ProgressBar screenshotProcess_ProgressBar;
     }
 }
 
