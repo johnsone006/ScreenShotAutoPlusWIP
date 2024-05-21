@@ -13,30 +13,27 @@ using System.Runtime.Remoting.Messaging;
 using System.Linq.Expressions;
 using System.Windows.Automation;
 using System.Runtime.InteropServices;
-using Open.Numeric.Primes;
 using System.Numerics;
-using Open.Numeric.Primes.Extensions;
-using System.Globalization;
-using Open.Collections;
+
+
 namespace ScreenshotAuto
 {
     public partial class ScreenshotAutoUI : Form
     {
         Process screenshotAuto;
         private int totalScreenshots;
-        private Size screenshotSize;
+        private Size evenedOutViewportSize;
         private int waitB4;
         private string savePath;
-        private int completedScreenshots;
         private readonly List<string> fileNames = new List<string>();
         private readonly List<string> filePaths = new List<string>();
-
+        Size selectedSize;
 
         public ScreenshotAutoUI()
         {
             InitializeComponent();
-        }
 
+        }
         private void ScreenshotAutoUI_Load(object sender, EventArgs e)
         {
             System.Drawing.Size formSize = new System.Drawing.Size(Screen.GetWorkingArea(this).Width, Screen.GetWorkingArea(this).Height);
@@ -79,14 +76,14 @@ namespace ScreenshotAuto
                         filePaths.Add(file.FullName);
                     }
                 }
-               
-                int waitB4 = int.Parse(waitB4_TB.Text);
+
+    
             }
             processStatus_LBL.Text = "Files processed!";
         }
         private void SavePath_BTN_Click(object sender, EventArgs e)
         {
-           using(FolderBrowserDialog saveDB = new FolderBrowserDialog())
+            using (FolderBrowserDialog saveDB = new FolderBrowserDialog())
             {
                 saveDB.Description = "Please select a folder that you want the screenshots to be saved to. Though not required, I would recommend that you pick an empty one. But it does need to be not the same folder that contains the files.";
                 saveDB.ShowNewFolderButton = true;
@@ -95,21 +92,16 @@ namespace ScreenshotAuto
                 savePath = savePath_TB.Text;
             }
         }
-        private void GetTotalNumberOfFiles()
-        {
-            string filePath = filePath_TB.Text;
-            DirectoryInfo files = new DirectoryInfo(filePath);
-            int totalScreenshots = files.GetFiles().Count();
-        }
-
-
         private void Prepare_BTN_Click(object sender, EventArgs e)
         {
-            long availableSpaceInBytes;
-            double totalMemoryForScreenshots;
-            List<BigInteger> factors = new List<BigInteger>();
+           if(savePath_TB.TextLength == 0 ||filePath_TB.TextLength == 0 || waitB4_TB.TextLength == 0 || int.TryParse(waitB4_TB.Text, out int waitB4)== false)
+            {
+                MessageBox.Show("Before the program can continue, you need to pick two file paths- one for the files that need to be screenshotted, and one to save the screenshots to- and also enter in a valid value for the pause prior to each screenshot. A valid value is anything above or equal to 0.");
+                return;
+            }
+            waitB4 = int.Parse(waitB4_TB.Text);
             int bytesPerPixel;
-            GetTotalNumberOfFiles();
+            totalScreenshots = filePaths.Count;
             using (Process prepProcess = new Process())
             {
                 IntPtr OpenNifskope()
@@ -137,71 +129,132 @@ namespace ScreenshotAuto
                     return rectToReturn;
                 }
                 System.Windows.Rect viewportRect = GetViewportRect();
+                void DetermineIfViewportWidthAndHeightIsEvenAndAdjustAccordingly()
+                {
+                    double widthOfRect = viewportRect.Width;
+                    double heightOfRect = viewportRect.Height;
+                    if (widthOfRect % 2 != 0)
+                        widthOfRect -= 1;
+                    if (heightOfRect % 2 != 0)
+                        heightOfRect -= 1;
+                    evenedOutViewportSize = new Size((int)widthOfRect, (int)heightOfRect);
+                }
+               DetermineIfViewportWidthAndHeightIsEvenAndAdjustAccordingly();
+                List<int> GetCommonFactors()
+                {
+                    List<int> widthFactors = new List<int>();
+                    List<int> commonFactorsToReturn = new List<int>();
+                    for(int i = 1; i < Math.Sqrt(evenedOutViewportSize.Width); i++)
+                    {
+                        if (evenedOutViewportSize.Width % i == 0)
+                        {
+                            widthFactors.Add(i);
+                        }
+                    }
+                    for(int i = 1; i < evenedOutViewportSize.Height; i++)
+                    {
+                        if(evenedOutViewportSize.Height % i == 0 && widthFactors.Contains(i))
+                        {
+                           commonFactorsToReturn.Add(i);
+                        }
+                    }
+                    //remove 1 from list
+                    int indexToRemove = commonFactorsToReturn.IndexOf(1);
+                    commonFactorsToReturn.RemoveAt(indexToRemove);
+
+                    return commonFactorsToReturn;
+                    
+                }
+                List<int> commonFactors = GetCommonFactors();
+                long DetermineTotalMemoryForScreenshotsAtTheSizeOfTheViewport()
+                {
+                    bytesPerPixel = Screen.FromHandle(prepProcess.MainWindowHandle).BitsPerPixel / 8;
+                    short width = (short)evenedOutViewportSize.Width;
+                    short height = (short)evenedOutViewportSize.Height;
+                    long memorySizeToReturn = (long)width * (long)height * (long)totalScreenshots * (long)bytesPerPixel ;
+                    return memorySizeToReturn;
+                }
+                long totalMemorySizeOfAllScreenshotsInitially = DetermineTotalMemoryForScreenshotsAtTheSizeOfTheViewport();
+                long DetermineHowMuchFreeSpaceIsOnDrive()
+                {
+                    DriveInfo saveDrive = new DriveInfo(savePath);
+                    long availableSpaceToReturn = saveDrive.AvailableFreeSpace;
+                    return availableSpaceToReturn;
+                }
+                long availableSpaceInBytes = DetermineHowMuchFreeSpaceIsOnDrive();
+                bool DetermineIfThereWillBeEnoughMemoryForTotalScreenshotsIfEachIsSameSizeAsInitialScreenshotSize()
+                {
+                    bool enoughSpaceToReturn = BigInteger.Max(availableSpaceInBytes, totalMemorySizeOfAllScreenshotsInitially).Equals(availableSpaceInBytes);
+                    return enoughSpaceToReturn;
+                    
+                }
+                bool enoughSpace = DetermineIfThereWillBeEnoughMemoryForTotalScreenshotsIfEachIsSameSizeAsInitialScreenshotSize();
                 List<Size> DeterminePossibleSizes()
                 {
-                    List<Size> possibleSizes = new List<Size>();
-                    int i = 0;
-                    double width = viewportRect.Width;
-                    double height = viewportRect.Height;
+                    Size candidateSize = new Size();
+
                     List<Size> sizeCandidatesToReturn = new List<Size>();
                     DriveInfo saveDrive = new DriveInfo(savePath);
-                    availableSpaceInBytes = saveDrive.AvailableFreeSpace;
-                    bytesPerPixel = Screen.FromHandle(prepProcess.MainWindowHandle).BitsPerPixel / 8;
-                    totalMemoryForScreenshots = viewportRect.Width * viewportRect.Height * bytesPerPixel * totalScreenshots;
-                    bool thereWillBeEnoughSpaceOnDriveIfSceenshotSizeEqualsViewportSize = Math.Max(totalMemoryForScreenshots, availableSpaceInBytes).Equals(availableSpaceInBytes);
-                    factors.AddRange(Prime.CommonFactors((int)viewportRect.Width, (int)viewportRect.Height));
-                    Size possibleSize = new Size();
-                    switch (thereWillBeEnoughSpaceOnDriveIfSceenshotSizeEqualsViewportSize)
+                    
+                    int widthTemp = evenedOutViewportSize.Width;
+                    int heightTemp = evenedOutViewportSize.Height;
+                    
+                    
+                    switch (enoughSpace)
                     {
-                       
                         case true:
-                            while (totalMemoryForScreenshots < availableSpaceInBytes);
+                            //Figure out how many times the screenshot size can be increased and still have enough memory to have totalScreenshots screenshots of that size.
+                            double firstQuotient = (availableSpaceInBytes / evenedOutViewportSize.Width) / evenedOutViewportSize.Height;
+                            double secondQuotient = (firstQuotient / totalScreenshots) / bytesPerPixel;
+                            double squareRoot = Math.Sqrt(secondQuotient);
+
+                            for (int i = 1; i < squareRoot; i++)
                             {
-                                i++;
-                                width *= i;
-                                height *= i;
-                                totalMemoryForScreenshots = width * height * bytesPerPixel * totalScreenshots;
-                                possibleSize = new Size((int)width, (int)height);
-                                sizeCandidatesToReturn.Add(possibleSize);
+                                widthTemp *= i;
+                                heightTemp *= i;
+                                candidateSize = new Size(widthTemp, heightTemp);
+                                sizeCandidatesToReturn.Add(candidateSize);
+                                widthTemp = evenedOutViewportSize.Width;
+                                heightTemp = evenedOutViewportSize.Height;
                             }
-                            i = 0;
-                            foreach (BigInteger factor in factors)
+                            foreach (int number in commonFactors)
                             {
-                               
-                                width = width / (double)factors[i];
-                                height = height / (double)factors[i];
-                                possibleSize = new Size((int)width, (int)height);
-                                sizeCandidatesToReturn.Add(possibleSize);
-                                i++;
+                                widthTemp /= number;
+                                heightTemp /= number;
+                                candidateSize = new Size(widthTemp, heightTemp);
+                                sizeCandidatesToReturn.Add(candidateSize);
+                                widthTemp = evenedOutViewportSize.Width;
+                                heightTemp = evenedOutViewportSize.Height;
                             }
                             break;
                         case false:
-                            i = 0;
-                            foreach (BigInteger factor in factors)
+                            foreach (int number in commonFactors)
                             {
-                                width /= (int)factors[i];
-                                height /= (int)factors[i];
-                                if (height * width * bytesPerPixel * totalScreenshots < availableSpaceInBytes)
+                                heightTemp /= number;
+                                widthTemp /= number;
+                                if (widthTemp * heightTemp * bytesPerPixel * totalScreenshots < availableSpaceInBytes)
                                 {
-                                    possibleSize = new Size((int)width, (int)height);
-                                    sizeCandidatesToReturn.Add(possibleSize);
+                                    candidateSize = new Size(widthTemp, heightTemp);
+                                    sizeCandidatesToReturn.Add(candidateSize);
                                 }
                             }
                             break;
                     }
                     return sizeCandidatesToReturn;
-
                 }
                 List<Size> sizeCandidates = DeterminePossibleSizes();
                 List<string> CalculatePercentOfMemoryScreenshotsWillTakeUpAtEachSize()
                 {
                     int i = 0;
-                    List<string> percentagesToReturn = new List<string>();  
-                    foreach(Size size in sizeCandidates)
+                    List<string> percentagesToReturn = new List<string>();
+                    foreach (Size size in sizeCandidates)
                     {
-                        totalMemoryForScreenshots = sizeCandidates[i].Width * sizeCandidates[i].Height * bytesPerPixel * totalScreenshots;
-                        decimal percent = (((decimal)totalMemoryForScreenshots) / availableSpaceInBytes) * 100;
-                        string percentString = string.Join("", percent, "%");
+                        int sizeCandidateWidth = sizeCandidates[i].Width;
+                        int sizeCandidateHeight = sizeCandidates[i].Height;
+                        totalMemorySizeOfAllScreenshotsInitially= (long)sizeCandidateWidth * (long)sizeCandidateHeight * (long)bytesPerPixel * (long)totalScreenshots;
+                        double percentAsDecimal = (double)totalMemorySizeOfAllScreenshotsInitially / availableSpaceInBytes;
+                        double percentAsNumber = (double)percentAsDecimal * 100;
+                        string percentString = string.Join("", percentAsNumber, "%");
                         percentagesToReturn.Add(percentString);
                         i++;
                     }
@@ -209,18 +262,135 @@ namespace ScreenshotAuto
 
                 }
                 List<string> percentages = CalculatePercentOfMemoryScreenshotsWillTakeUpAtEachSize();
-                void FillOutDataGridViews()
+                void FillOutDGV()
                 {
-                    possibleSizes_DGV.DataSource = sizeCandidates;
-                    percentOfMemory_DGV.DataSource = percentages;
+                    screenshotInformation_DGV.RowCount = percentages.Count;
+                    for(int i = 0; i < sizeCandidates.Count; i++)
+                    {
+                        string size = string.Join("x", sizeCandidates[i].Width.ToString(), sizeCandidates[i].Height.ToString());
+                        screenshotInformation_DGV[0, i].Value = i;
+                        screenshotInformation_DGV[1,i].Value = size;
+                        screenshotInformation_DGV[2, i].Value = percentages[i];
+                    }
+                    
                 }
-                FillOutDataGridViews();
-                MessageBox.Show("On the ui of ScreenshotAuto, you should  see two data grid views. The one on the left tells you the possible sizes each screenshot could be while respecting the aspect ratio of the viewport, and the one on the left tells you the percentage of the total available space the screenshots will take up. When you are ready to start the process, go ahead and select one of the percentages, then click start.");
+                FillOutDGV();
+                MessageBox.Show("At this point, the data grid view should be filled with potential sizes of screenshots that will be able to fit on the drive you have chosen. Please enter in the ID of the size youw want into the numberic up down, and then click start.");
+                prepProcess.Kill();
+                sizeID_NUD.Maximum = screenshotInformation_DGV.RowCount-1;
             }
 
         }
+        private void Start_BTN_Click(object sender, EventArgs e)
+        {
+            //Get the chosen size.;
+            int id = (int)sizeID_NUD.Value;
+            string size = screenshotInformation_DGV.Rows[id].Cells[1].Value.ToString();
+            string[] sizeArray = size.Split('x');
+            int width = int.Parse(sizeArray[0]);
+            int height = int.Parse(sizeArray[1]);
+            selectedSize = new Size(width, height);
+            while(backgroundWorker1.IsBusy == false)
+            {
+                backgroundWorker1.RunWorkerAsync();
+            }
+        }
+        private async void BackgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+            int completedScreenshots = 0;
+            BackgroundWorker worker = sender as BackgroundWorker;
+            if(savePath == null || filePaths.Count == 0)
+            {
+                return;
+            }
+            while(completedScreenshots != totalScreenshots)
+            {
+                using(Process screenshotProcess = new Process())
+                {
+                    if(worker.CancellationPending == true)
+                    {
+                        e.Cancel = true;
+                        break;
+                    }
+                    Task OpenNifskope =  Task.Run(() =>
+                    {
+                        screenshotProcess.StartInfo.WindowStyle = ProcessWindowStyle.Maximized;
+                        screenshotProcess.StartInfo.FileName = filePaths[completedScreenshots];
+                        screenshotProcess.Start();
+                        while (screenshotProcess.MainWindowHandle == IntPtr.Zero)
+                        {
+                            Task.Delay(10);
+                        }
+                        //make sure that the nif has actually loaded before this method returns too.
+                        AutomationElement elementThatWillNotBeEnabledUntilFileLoads = AutomationElement.FromHandle(screenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.NameProperty, "Save View"));
+                        bool enabled = false;
+                        do
+                        {
+                            enabled = elementThatWillNotBeEnabledUntilFileLoads.Current.IsEnabled;
+                        }
+                        while (enabled == false);
+                        return Task.CompletedTask;
+                    });
+                    await OpenNifskope;
+                    Task<Bitmap> TakeAndResizeScreenshot = Task.Run<Bitmap>(() =>
+                    {
+                        using (Bitmap screenshotOfNif = new Bitmap(evenedOutViewportSize.Width, evenedOutViewportSize.Height))
+                        {
+                            AutomationElement viewportElement = AutomationElement.FromHandle(screenshotProcess.MainWindowHandle).FindFirst(TreeScope.Subtree, new PropertyCondition(AutomationElement.ClassNameProperty, "Qt5QWindowOwnDCIcon"));
+                            System.Windows.Rect viewportRect = viewportElement.Current.BoundingRectangle;
+                            System.Drawing.Point upperLeftPointOfScreenshot = new Point((int)viewportRect.Left, (int)viewportRect.Top);
+                            System.Drawing.Point destinationOfScreenshot = new System.Drawing.Point(0, 0);
+                            Graphics theGraphicsOfScreenshot = Graphics.FromImage(screenshotOfNif);
+                            theGraphicsOfScreenshot.CopyFromScreen(upperLeftPointOfScreenshot, destinationOfScreenshot, evenedOutViewportSize);
+                            Bitmap finalBitmapToReturn = new Bitmap(screenshotOfNif, new Size(selectedSize.Width, selectedSize.Height));
+                            return finalBitmapToReturn;
+                        }
+                    });
+                    Bitmap finalBitmap = await TakeAndResizeScreenshot;
+                    Task<int> SaveScreenshot = Task.Run<int>(() =>
+                    {
+                        int completedScreenshotsToReturn = completedScreenshots;
+                        string screenshotName = fileNames[completedScreenshots].ToString().Replace(".nif", ".bmp");
+                        finalBitmap.Save(savePath + "\\" + screenshotName, ImageFormat.Bmp);
+                        completedScreenshotsToReturn++;
+                        return completedScreenshotsToReturn;
+                    });
+                    completedScreenshots = await SaveScreenshot;
+                    Task<double> CalculateTimeThisWillTakeInMilliseconds = Task.Run(() =>
+                    {
+                        double timeInMillisecondsSoFar = screenshotProcess.TotalProcessorTime.TotalMilliseconds;
+                        double totalMillisecondsToReturn = timeInMillisecondsSoFar * totalScreenshots;
+                        return totalMillisecondsToReturn;
+                    });
+                    double totalMilliseconds = await CalculateTimeThisWillTakeInMilliseconds;
+                    Task<string> FormattedTimeSpan = Task.Run(() =>
+                    {
+                        TimeSpan totalTimeSpan = TimeSpan.FromMilliseconds(totalMilliseconds);
+                        double days = totalTimeSpan.Days;
+                        double hours = totalTimeSpan.Hours;
+                        double minutes = totalTimeSpan.Minutes;
+                        double seconds = totalTimeSpan.Seconds;
+                        double milliseconds = totalTimeSpan.Milliseconds;
+                        string timeSpanToReturn = string.Join(":", days, hours, minutes, seconds, milliseconds);
+                        return timeSpanToReturn;
+                    });
+                    string timeSpan = await FormattedTimeSpan;
 
-       
+                    Task UpdateUI = Task.Run((() =>
+                    {
+                        this.Invoke((MethodInvoker)(() =>
+                        {
+                           
+                            timeLeft_LBL.Text += timeSpan;
+                            completedScreenshotsCount_LBL.Text += completedScreenshots.ToString();
+                        }));
+                    }));
+                    await UpdateUI;
+                    screenshotProcess.Kill();
+                }//end of using block
+            }//end of while loop
+
+        }//end of background worker method
+
     }
 }
-
